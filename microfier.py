@@ -260,8 +260,7 @@ async def bind(ctx, *, room=''):
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         data = db['rooms'][room]
-        guild = []
-        guild.append(webhook.id)
+        guild = [webhook.id]
         data.update({f'{ctx.guild.id}': guild})
         db['rooms'][room] = data
         db.save_data()
@@ -633,7 +632,7 @@ async def on_message_edit(before, after):
             continue
 
         await webhook.edit_message(
-            message_id = msg_id,
+            message_id=msg_id,
             content=message.content
         )
 
