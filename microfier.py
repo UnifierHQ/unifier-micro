@@ -183,7 +183,7 @@ db.load_data()
 
 messages = []
 
-bot = commands.Bot(command_prefix='u!', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix=config['prefix'], intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
