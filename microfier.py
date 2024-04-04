@@ -687,7 +687,6 @@ async def on_message_edit(before, after):
     try:
         msg: UnifierMessage = await fetch_message(message.id)
     except:
-        raise
         return
 
     roomname = msg.room
@@ -704,7 +703,6 @@ async def on_message_edit(before, after):
             msg_id = int(await msg.fetch_id(str(guild.id)))
             webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
         except:
-            raise
             continue
 
         await webhook.edit_message(
