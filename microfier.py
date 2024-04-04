@@ -38,7 +38,7 @@ class UnifierMessage:
         if guild_id == self.guild_id:
             return self.id
 
-        return self.copies[guild_id][1]
+        return self.copies[guild_id]
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -183,9 +183,18 @@ db.load_data()
 
 messages = []
 
-bot = commands.Bot(command_prefix=config['prefix'], intents=discord.Intents.all())
-
+intents = discord.Intents(
+    emojis=True,
+    emojis_and_stickers=True,
+    guild_messages=True,
+    guilds=True,
+    message_content=True,
+    messages=True,
+    webhooks=True
+)
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+
+bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 
 asciiart = """  _    _       _  __ _           
  | |  | |     (_)/ _(_)          
@@ -551,6 +560,9 @@ async def on_message(message):
         if roomname:
             break
 
+    if not roomname:
+        return
+
     limit_notified = False
     reply_msg = None
     trimmed = None
@@ -582,7 +594,9 @@ async def on_message(message):
         donotshow = True
 
     for guild_id in list(db['rooms'][roomname].keys()):
-        guild = bot.get_guild(guild_id)
+        if int(guild_id)==message.guild.id:
+            continue
+        guild = bot.get_guild(int(guild_id))
         if not guild:
             continue
 
@@ -666,32 +680,31 @@ async def on_message_edit(before, after):
         return
     message = after
 
+    if not message.webhook_id == None:
+        # webhook msg
+        return
+
     try:
         msg: UnifierMessage = await fetch_message(message.id)
     except:
+        raise
         return
 
-    hooks = await message.channel.webhooks()
+    roomname = msg.room
 
-    roomname = None
-    for room in list(db['rooms'].keys()):
-        try:
-            for hook in hooks:
-                if hook.id == db['rooms'][room][f'{message.guild.id}'][0]:
-                    roomname = room
-                    break
-        except:
-            continue
-        if roomname:
-            break
+    if not roomname:
+        return
 
     for guild_id in list(db['rooms'][roomname].keys()):
-        guild = bot.get_guild(guild_id)
+        if int(guild_id)==message.guild.id:
+            continue
+        guild = bot.get_guild(int(guild_id))
 
         try:
-            msg_id = int(await msg.fetch_id(guild.id))
+            msg_id = int(await msg.fetch_id(str(guild.id)))
             webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
         except:
+            raise
             continue
 
         await webhook.edit_message(
@@ -701,30 +714,24 @@ async def on_message_edit(before, after):
 
 @bot.event
 async def on_message_delete(message):
+    if not message.webhook_id == None:
+        # webhook msg
+        return
+
     try:
         msg: UnifierMessage = await fetch_message(message.id)
     except:
         return
 
-    hooks = await message.channel.webhooks()
-
-    roomname = None
-    for room in list(db['rooms'].keys()):
-        try:
-            for hook in hooks:
-                if hook.id == db['rooms'][room][f'{message.guild.id}'][0]:
-                    roomname = room
-                    break
-        except:
-            continue
-        if roomname:
-            break
+    roomname = msg.room
 
     for guild_id in list(db['rooms'][roomname].keys()):
-        guild = bot.get_guild(guild_id)
+        if int(guild_id)==message.guild.id:
+            continue
+        guild = bot.get_guild(int(guild_id))
 
         try:
-            msg_id = int(await msg.fetch_id(guild.id))
+            msg_id = int(await msg.fetch_id(str(guild.id)))
             webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
         except:
             continue
