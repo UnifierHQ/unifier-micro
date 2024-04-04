@@ -35,3 +35,10 @@ installing Upgrader).
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
+## License
+Unifier is licensed under the GPLv3. If you wish to use its source code, please read the license carefully before doing so.
+
+## Note
+Unifier's icon was co-created by @green. and @thegodlypenguin on Discord.
+
+Unifier and UnifierHQ developers are not affiliated or associated with, or endorsed by Discord Inc.
