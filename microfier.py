@@ -191,6 +191,57 @@ mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 async def on_ready():
     logger.info('Unifier is ready!')
 
+@commands.command(hidden=True)
+async def addmod(ctx,*,userid):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can manage moderators!')
+    try:
+        userid = int(userid)
+    except:
+        try:
+            userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+        except:
+            return await ctx.send('Not a valid user!')
+    try:
+        user = await bot.fetch_user(userid)
+    except:
+        return await ctx.send('Not a valid user!')
+    if userid in db['moderators']:
+        return await ctx.send('This user is already a moderator!')
+    if is_user_admin(userid):
+        return await ctx.send('are you fr')
+    db['moderators'].append(userid)
+    db.save_data()
+    mod = f'{user.name}#{user.discriminator}'
+    if user.discriminator=='0':
+        mod = f'@{user.name}'
+    await ctx.send(f'**{mod}** is now a moderator!')
+
+@commands.command(hidden=True,aliases=['remmod','delmod'])
+async def removemod(ctx,*,userid):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can manage moderators!')
+    try:
+        userid = int(userid)
+    except:
+        try:
+            userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+        except:
+            return await ctx.send('Not a valid user!')
+    try:
+        user = await bot.fetch_user(userid)
+    except:
+        return await ctx.send('Not a valid user!')
+    if not userid in db['moderators']:
+        return await ctx.send('This user is not a moderator!')
+    if is_user_admin(userid):
+        return await ctx.send('are you fr')
+    db['moderators'].remove(userid)
+    db.save_data()
+    mod = f'{user.name}#{user.discriminator}'
+    if user.discriminator=='0':
+        mod = f'@{user.name}'
+    await ctx.send(f'**{mod}** is no longer a moderator!')
 
 @bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
 async def bind(ctx, *, room=''):
