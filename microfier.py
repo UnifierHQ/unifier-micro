@@ -187,6 +187,18 @@ bot = commands.Bot(command_prefix='u!', intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
+asciiart = """  _    _       _  __ _           
+ | |  | |     (_)/ _(_)          
+ | |  | |_ __  _| |_ _  ___ _ __ 
+ | |  | | '_ \\| |  _| |/ _ \\ '__|
+ | |__| | | | | | | | |  __/ |   
+  \\____/|_| |_|_|_| |_|\\___|_| """
+
+print(asciiart)
+print('Micro edition')
+print('Version: 1.1.5')
+print()
+
 @bot.event
 async def on_ready():
     logger.info('Unifier is ready!')
