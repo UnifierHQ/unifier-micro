@@ -21,6 +21,7 @@ from discord.ext import commands
 import json
 import logging
 import time
+import datetime
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
@@ -183,6 +184,11 @@ db.load_data()
 
 messages = []
 
+ut_total = round(time.time())
+ut_connected = 0
+ut_conntime = round(time.time())
+ut_measuring = True
+
 intents = discord.Intents(
     emojis=True,
     emojis_and_stickers=True,
@@ -211,6 +217,55 @@ print()
 @bot.event
 async def on_ready():
     logger.info('Unifier is ready!')
+
+@bot.event
+async def on_connect():
+    global ut_measuring
+    global ut_conntime
+    if not ut_measuring:
+        ut_measuring = True
+        ut_conntime = round(time.time())
+
+@bot.event
+async def on_disconnect():
+    global ut_measuring
+    global ut_connected
+    global ut_conntime
+    if ut_measuring:
+        ut_connected += round(time.time()) - ut_conntime
+        ut_measuring = False
+
+@bot.command()
+async def uptime(ctx):
+    embed = discord.Embed(
+        title=f'{bot.user.global_name} uptime',
+        description=f'The bot has been up since <t:{ut_total}:f>.'
+    )
+    t = ut_connected + round(time.time()) - ut_conntime
+    td = datetime.timedelta(seconds=t)
+    d = td.days
+    h, m, s = str(td).split(':')
+    tup = t
+    embed.add_field(
+        name='Total uptime',
+        value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
+        inline=False
+    )
+    t = ut_connected + round(time.time()) - ut_conntime
+    td = datetime.timedelta(seconds=t)
+    d = td.days
+    h, m, s = str(td).split(':')
+    embed.add_field(
+        name='Connected uptime',
+        value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
+        inline=False
+    )
+    embed.add_field(
+        name='Connected uptime %',
+        value=f'{round((t/tup)*100,2)}%',
+        inline=False
+    )
+    await ctx.send(embed=embed)
 
 @bot.command(hidden=True)
 async def addmod(ctx,*,userid):
@@ -524,6 +579,9 @@ async def delete(ctx, *, msg_id=None):
 async def on_message(message):
     if not message.webhook_id == None:
         # webhook msg
+        return
+
+    if message.author.id == bot.user.id:
         return
 
     if message.content.startswith(bot.command_prefix):
