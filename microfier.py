@@ -619,6 +619,28 @@ async def on_message(message):
         components = None
 
         if reply_msg:
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.gray,
+                        label=f'Replying to [unknown]',
+                        disabled=True
+                    )
+                ),
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.blurple,
+                        label=f'x{len(message.attachments)}',
+                        emoji='\U0001F3DE',
+                        disabled=True
+                    ) if donotshow else discord.ui.Button(
+                        style=discord.ButtonStyle.blurple,
+                        label=trimmed,
+                        disabled=True
+                    )
+                )
+            )
+
             ch = guild.get_channel(webhook.channel_id)
             if ch:
                 url = f'https://discord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
@@ -640,10 +662,12 @@ async def on_message(message):
                         discord.ui.Button(
                             style=discord.ButtonStyle.blurple,
                             label=f'x{len(message.attachments)}',
-                            emoji='\U0001F3DE'
+                            emoji='\U0001F3DE',
+                            disabled=True
                         ) if donotshow else discord.ui.Button(
                             style=discord.ButtonStyle.blurple,
                             label=trimmed,
+                            disabled=True
                         )
                     )
                 )
