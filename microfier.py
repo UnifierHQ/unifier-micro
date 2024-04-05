@@ -211,7 +211,7 @@ asciiart = """  _    _       _  __ _
 
 print(asciiart)
 print('Micro edition')
-print('Version: 1.1.5')
+print('Version: 1.1.6')
 print()
 
 @bot.event
