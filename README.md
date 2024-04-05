@@ -6,8 +6,8 @@
 
 ## What is Unifier Micro?
 Unifier Micro is a much lighter and less performant version of Unifier, built to work on extremely low-end systems. 
-Memory usage is minimized by removing certain values from `UnifierMessage` class, as well as not utilizing caching 
-and multithreading.
+Memory usage is minimized by removing certain values from `UnifierMessage` class, as well as not utilizing 
+multithreading and reducing caching.
 
 ## Who should use this?
 Unifier Micro is built for small communities just wanting to give Unifier a spin, or communities with very limited 
