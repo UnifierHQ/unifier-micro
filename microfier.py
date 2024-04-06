@@ -762,6 +762,14 @@ async def on_message(message):
     if message.content.startswith(bot.command_prefix):
         return await bot.process_commands(message)
 
+    if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+            'discordapp.com/invite/' in message.content):
+        try:
+            await message.delete()
+        except:
+            pass
+        return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
+
     gbans = db['banned']
     ct = time.time()
     if f'{message.author.id}' in list(gbans.keys()):
