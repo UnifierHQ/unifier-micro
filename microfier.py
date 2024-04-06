@@ -759,7 +759,7 @@ async def on_message(message):
     if message.author.id == bot.user.id:
         return
 
-    if message.content.startswith(bot.command_prefix):
+    if message.content.startswith(bot.command_prefix) and not message.author.bot:
         return await bot.process_commands(message)
 
     if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
