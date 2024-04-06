@@ -319,6 +319,79 @@ async def removemod(ctx,*,userid):
         mod = f'@{user.name}'
     await ctx.send(f'**{mod}** is no longer a moderator!')
 
+@bot.command(hidden=True, aliases=['newroom'])
+async def make(ctx,*,room):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can create rooms!')
+    if room in list(db['rooms'].keys()):
+        return await ctx.send('This room already exists!')
+    db['rooms'].update({room:{}})
+    db['rules'].update({room:[]})
+    db.save_data()
+    await ctx.send(f'Created room `{room}`!')
+
+@bot.command(hidden=True)
+async def addrule(ctx,*,args):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rules!')
+    try:
+        room, rule = args.split(' ',1)
+    except:
+        return await ctx.send('Rule is missing.')
+    if not room in list(db['rules'].keys()):
+        return await ctx.send('This room does not exist!')
+    db['rules'][room].append(rule)
+    db.save_data()
+    await ctx.send('Added rule!')
+
+@bot.command(hidden=True)
+async def delrule(ctx,*,args):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rules!')
+    try:
+        room, rule = args.split(' ',1)
+    except:
+        return await ctx.send('Rule is missing.')
+    try:
+        rule = int(rule)
+        if rule <= 0:
+            raise ValueError()
+    except:
+        return await ctx.send('Rule must be a number higher than 0.')
+    if not room in list(db['rules'].keys()):
+        return await ctx.send('This room does not exist!')
+    db['rules'][room].pop(rule-1)
+    db.save_data()
+    await ctx.send('Removed rule!')
+
+@bot.command(hidden=True)
+async def roomrestrict(ctx,*,room):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rooms!')
+    if not room in list(db['rooms'].keys()):
+        return await ctx.send('This room does not exist!')
+    if room in db['restricted']:
+        db['restricted'].remove(room)
+        await ctx.send(f'Unrestricted `{room}`!')
+    else:
+        db['restricted'].append(room)
+        await ctx.send(f'Restricted `{room}`!')
+    db.save_data()
+
+@bot.command(hidden=True)
+async def roomlock(ctx,*,room):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rooms!')
+    if not room in list(db['rooms'].keys()):
+        return await ctx.send('This room does not exist!')
+    if room in db['locked']:
+        db['locked'].remove(room)
+        await ctx.send(f'Unlocked `{room}`!')
+    else:
+        db['locked'].append(room)
+        await ctx.send(f'Locked `{room}`!')
+    db.save_data()
+
 @bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
 async def bind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
