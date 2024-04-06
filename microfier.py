@@ -189,15 +189,18 @@ ut_connected = 0
 ut_conntime = round(time.time())
 ut_measuring = True
 
-intents = discord.Intents(
-    emojis=True,
-    emojis_and_stickers=True,
-    guild_messages=True,
-    guilds=True,
-    message_content=True,
-    messages=True,
-    webhooks=True
-)
+#intents = discord.Intents(
+#    emojis=True,
+#    emojis_and_stickers=True,
+#    guild_messages=True,
+#    guilds=True,
+#    message_content=True,
+#    messages=True,
+#    webhooks=True
+#)
+
+intents = discord.Intents.all()
+
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
