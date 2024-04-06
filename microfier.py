@@ -23,6 +23,8 @@ import logging
 import time
 import datetime
 
+version = '1.1.7'
+
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
         self.author_id = author_id
@@ -214,7 +216,7 @@ asciiart = """  _    _       _  __ _
 
 print(asciiart)
 print('Micro edition')
-print('Version: 1.1.6')
+print(f'Version: {version}')
 print()
 
 @bot.event
@@ -729,6 +731,13 @@ async def delete(ctx, *, msg_id=None):
         except:
             logger.exception('Something went wrong!')
             await ctx.send('Something went wrong.')
+
+@bot.command()
+async def about(ctx):
+    embed = discord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
+    embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
+    embed.set_footer(text=f"Version {version}")
+    await ctx.send(embed=embed)
 
 @bot.event
 async def on_message(message):
