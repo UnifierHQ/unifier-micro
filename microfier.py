@@ -473,7 +473,21 @@ async def bind(ctx, *, room=''):
     try:
         data = db['rooms'][room]
     except:
-        return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+        return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of rooms.')
+    embed = discord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
+    msg = await ctx.send(embed=embed)
+    for room in list(db['rooms'].keys()):
+        # Prevent duplicate binding
+        try:
+            hook_id = db['rooms'][room][f'{ctx.guild.id}'][0]
+            hook = await bot.fetch_webhook(hook_id)
+            if hook.channel_id == ctx.channel.id:
+                embed.title = 'Channel already linked!'
+                embed.colour = 0xff0000
+                embed.description = f'This channel is already linked to `{room}`!\nRun `{bot.command_prefix}unbind {room}` to unbind from it.'
+                return await msg.edit(embed=embed)
+        except:
+            continue
     try:
         try:
             guild = data[f'{ctx.guild.id}']
@@ -503,7 +517,7 @@ async def bind(ctx, *, room=''):
         ]
         btns = discord.ui.ActionRow(row[0], row[1])
         components = discord.ui.MessageComponents(btns)
-        msg = await ctx.send(embed=embed, components=components)
+        await msg.edit(embed=embed, components=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and (
