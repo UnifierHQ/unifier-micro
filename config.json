@@ -3,6 +3,7 @@
   "package": "microfier",
   "owner": 356456393491873795,
   "prefix": "u!",
+  "ping": 0,
   "admin_ids": [356456393491873795],
-  "token": "token",
+  "token": "token"
 }

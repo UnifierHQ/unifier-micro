@@ -231,8 +231,24 @@ print('Micro edition')
 print(f'Version: {version}')
 print()
 
+@tasks.loop(seconds=config['ping'])
+async def periodicping():
+    guild = bot.guilds[0]
+    try:
+        await bot.fetch_channel(guild.text_channels[0].id)
+    except:
+        pass
+
 @bot.event
 async def on_ready():
+    if not periodicping.is_running() and config['ping'] > 0:
+        if config['ping'].is_integer():
+            periodicping.start()
+            logger.debug(f'Pinging servers every {config["ping"]} seconds')
+        else:
+            logger.warning('Ping time must be an integer, periodic pinger will not be used')
+    elif config['ping'] <= 0:
+        logger.debug(f'Periodic pinging disabled')
     logger.info('Unifier is ready!')
 
 @bot.event
