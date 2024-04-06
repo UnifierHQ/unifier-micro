@@ -367,6 +367,36 @@ async def delrule(ctx,*,args):
     db.save_data()
     await ctx.send('Removed rule!')
 
+
+@bot.command()
+async def rules(ctx, *, room=''):
+    """Displays room rules for the specified room."""
+    if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
+        return await ctx.send(':eyes:')
+    if room == '' or not room:
+        room = 'main'
+
+    if not room in list(db['rooms'].keys()):
+        return await ctx.send(f'This room doesn\'t exist! Run `{bot.command_prefix}rooms` to get a full list.')
+
+    index = 0
+    text = ''
+    if room in list(db['rules'].keys()):
+        rules = db['rules'][room]
+        if len(rules) == 0:
+            return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
+    else:
+        return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
+    for rule in rules:
+        if text == '':
+            text = f'1. {rule}'
+        else:
+            text = f'{text}\n{index}. {rule}'
+        index += 1
+    embed = discord.Embed(title='Room rules', description=text)
+    embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
+    await ctx.send(embed=embed)
+
 @bot.command(hidden=True)
 async def roomrestrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
