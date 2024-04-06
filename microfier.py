@@ -22,8 +22,11 @@ import json
 import logging
 import time
 import datetime
+from dotenv import load_dotenv
+import sys
+import os
 
-version = '1.1.7'
+version = '1.1.8'
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
@@ -175,11 +178,20 @@ async def fetch_message(message_id):
 with open('config.json', 'r') as file:
     config = json.load(file)
 
+env_loaded = load_dotenv()
+
 level = logging.DEBUG if config['debug'] else logging.INFO
 package = config['package']
 admin_ids = config['admin_ids']
 
 logger = buildlogger(package,'core',level)
+
+if not env_loaded or not "TOKEN" in os.environ:
+    logger.critical('Could not find token from .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
+    sys.exit(1)
+
+if 'token' in list(config.keys()):
+    logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
 
 db = AutoSaveDict({})
 db.load_data()
@@ -439,14 +451,13 @@ async def rooms(ctx):
             if not is_user_admin(ctx.author.id):
                 continue
             emoji = ':wrench:'
+            desc = 'Only admins can bind to this room.'
         elif is_room_locked(room,db):
             emoji = ':lock:'
+            desc = 'This room is locked to moderators and admins only.'
         else:
             emoji = ':globe_with_meridians:'
-        if room in list(db['descriptions'].keys()):
-            desc = db['descriptions'][room]
-        else:
-            desc = 'This room has no description.'
+            desc = 'This room is available to anyone!'
         online = 0
         members = 0
         guilds = 0
@@ -988,4 +999,4 @@ async def on_message_delete(message):
 
         await webhook.delete_message(msg_id)
 
-bot.run(config['token'])
+bot.run(os.environ.get('TOKEN'))

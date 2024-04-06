@@ -1,1 +1,2 @@
 novus>=0.2.4
+python-dotenv
