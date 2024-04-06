@@ -694,6 +694,9 @@ async def on_message(message):
     if not roomname:
         return
 
+    if is_room_locked(roomname,db) and not message.author.id in db['moderators']:
+        return
+
     limit_notified = False
     reply_msg = None
     trimmed = None
@@ -847,6 +850,9 @@ async def on_message_edit(before, after):
     roomname = msg.room
 
     if not roomname:
+        return
+
+    if is_room_locked(roomname,db) and not message.author.id in db['moderators']:
         return
 
     for guild_id in list(db['rooms'][roomname].keys()):
