@@ -392,6 +392,42 @@ async def roomlock(ctx,*,room):
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
 
+@commands.command()
+async def rooms(ctx):
+    embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{bot.command_prefix}bind <room>` to bind to a room.')
+    if len(db['rooms'])==0:
+        embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
+        return await ctx.send(embed=embed)
+    count = 0
+    for room in db['rooms']:
+        if is_room_restricted(room,db):
+            if not is_user_admin(ctx.author.id):
+                continue
+            emoji = ':wrench:'
+        elif is_room_locked(room,db):
+            emoji = ':lock:'
+        else:
+            emoji = ':globe_with_meridians:'
+        if room in list(db['descriptions'].keys()):
+            desc = db['descriptions'][room]
+        else:
+            desc = 'This room has no description.'
+        online = 0
+        members = 0
+        guilds = 0
+        for guild_id in db['rooms'][room]:
+            try:
+                guild = bot.get_guild(int(guild_id))
+                online += len(list(filter(lambda x: (x.status!=discord.Status.offline and x.status!=discord.Status.invisible), guild.members)))
+                members += len(guild.members)
+                guilds += 1
+            except:
+                pass
+        embed.add_field(name=f'{emoji} `{room}` - {guilds} servers (:green_circle: {online} online, :busts_in_silhouette: {members} members)',value=desc,inline=False)
+        count += 1
+    embed.title = f'UniChat rooms (Total: `{count}`)'
+    await ctx.send(embed=embed)
+
 @bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
 async def bind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
@@ -554,7 +590,6 @@ async def unrestrict(ctx, *, target):
     db['blocked'][f'{ctx.guild.id}'].remove(userid)
     db.save_data()
     await ctx.send('User/server can now forward messages to this channel!')
-
 
 @bot.command(aliases=['find'])
 async def identify(ctx):
