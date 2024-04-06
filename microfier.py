@@ -392,7 +392,7 @@ async def roomlock(ctx,*,room):
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
 
-@commands.command()
+@bot.command()
 async def rooms(ctx):
     embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{bot.command_prefix}bind <room>` to bind to a room.')
     if len(db['rooms'])==0:
