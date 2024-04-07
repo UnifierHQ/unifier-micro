@@ -274,7 +274,7 @@ async def uptime(ctx):
     t = ut_connected + round(time.time()) - ut_conntime
     td = datetime.timedelta(seconds=t)
     d = td.days
-    h, m, s = str(td).split(':')
+    h, m, s = str(td).split(',')[len(str(td).split(','))-1].split(':')
     tup = t
     embed.add_field(
         name='Total uptime',
