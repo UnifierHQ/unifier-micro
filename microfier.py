@@ -71,6 +71,9 @@ class AutoSaveDict(dict):
             json.dump(self, file, indent=4)
 
 class CustomFormatter(logging.Formatter):
+    """The code in this class was based on code from discord.py.
+    Please check EXTERNAL_LICENSES.txt for attribution and licensing info."""
+    
     def __init__(self, count):
         super().__init__()
         log_colors = {
