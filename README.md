@@ -35,6 +35,7 @@ installing Upgrader).
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
+
 ## License
 Unifier Micro is licensed under the GPLv3. If you wish to use its source code, please read the license carefully before 
 doing so.
@@ -45,6 +46,9 @@ We want to thank:
   is now re-continued, but for now we'd like to use Novus)
 - [**Rapptz**](https://github.com/Rapptz) and [**discord.py**](https://github.com/Rapptz/discord.py) developers, for creating the
   discord.py library Novus is based on
+
+We also use the logging logger formatting code from discord.py, which is licensed under the MIT license. You can find more info in 
+the `EXTERNAL_LICENSES.txt` file.
 
 ## Special thanks
 As the project founder and leader, I want to give my special thanks to:
