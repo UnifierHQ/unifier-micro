@@ -37,7 +37,7 @@ installing Upgrader).
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
 ## License
-Unifier Micro is licensed under the GPLv3. If you wish to use its source code, please read the license carefully before 
+Unifier Micro is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before 
 doing so.
 
 ## Acknowledgments
