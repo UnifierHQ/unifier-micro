@@ -15,6 +15,10 @@ resources to run Unifier. For communities of scale with decent resources, we rec
 version](https://github.com/greeeen-dev/unifier) instead.
 
 ## Features
+### Basic features
+Like most bridge bots, Unifier Micro has basic commands such as link, unlink, etc., so you can do most of what you'd 
+need to do.
+
 ### Simple and efficient bridge
 Unifier Micro's bridge has been rewritten to be as simple and resource efficient as possible. Although this results 
 in significant performance losses, it is still usable enough for small communities.
