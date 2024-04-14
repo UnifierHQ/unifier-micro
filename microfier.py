@@ -234,15 +234,16 @@ mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 
-asciiart = """  _    _       _  __ _           
- | |  | |     (_)/ _(_)          
- | |  | |_ __  _| |_ _  ___ _ __ 
- | |  | | '_ \\| |  _| |/ _ \\ '__|
- | |__| | | | | | | | |  __/ |   
-  \\____/|_| |_|_|_| |_|\\___|_| """
+asciiart = """
+  _    _       _  __ _           __  __ _                
+ | |  | |     (_)/ _(_)         |  \\/  (_)               
+ | |  | |_ __  _| |_ _  ___ _ __| \\  / |_  ___ _ __ ___  
+ | |  | | '_ \\| |  _| |/ _ \\ '__| |\\/| | |/ __| '__/ _ \\ 
+ | |__| | | | | | | | |  __/ |  | |  | | | (__| | | (_) |
+  \\____/|_| |_|_|_| |_|\\___|_|  |_|  |_|_|\\___|_|  \\___/ 
+  """
 
 print(asciiart)
-print('Micro edition')
 print(f'Version: {version}')
 print()
 
