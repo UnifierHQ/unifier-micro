@@ -192,8 +192,8 @@ logger = buildlogger(package,'core',level)
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
     x.close()
-    logger.info('Thank you for installing Unifier!')
-    logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
+    logger.info('Thank you for installing Unifier Micro!')
+    logger.info('Unifier Micro is licensed under the AGPLv3, so if you would like to add your own twist to Unifier Micro, you must follow AGPLv3 conditions.')
     logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl//setup-selfhosted/modding-unifier')
 
 if not 'repo' in list(config.keys()):
@@ -286,7 +286,7 @@ async def uptime(ctx):
         title=f'{bot.user.global_name} uptime',
         description=f'The bot has been up since <t:{ut_total}:f>.'
     )
-    t = ut_connected + round(time.time()) - ut_conntime
+    t = round(time.time()) - ut_total
     td = datetime.timedelta(seconds=t)
     d = td.days
     h, m, s = str(td).split(',')[len(str(td).split(','))-1].split(':')
