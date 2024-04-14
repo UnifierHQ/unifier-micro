@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 import sys
 import os
 
-version = '1.1.8'
+version = '1.1.9'
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
