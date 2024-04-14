@@ -3,16 +3,16 @@ Unifier Micro - A much lighter version of Unifier
 Copyright (C) 2024  Green
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
@@ -73,7 +73,7 @@ class AutoSaveDict(dict):
 class CustomFormatter(logging.Formatter):
     """The code in this class was based on code from discord.py.
     Please check EXTERNAL_LICENSES.txt for attribution and licensing info."""
-    
+
     def __init__(self, count):
         super().__init__()
         log_colors = {
@@ -188,6 +188,18 @@ package = config['package']
 admin_ids = config['admin_ids']
 
 logger = buildlogger(package,'core',level)
+
+if not '.welcome.txt' in os.listdir():
+    x = open('.welcome.txt','w+')
+    x.close()
+    logger.info('Thank you for installing Unifier!')
+    logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
+    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl//setup-selfhosted/modding-unifier')
+
+if not 'repo' in list(config.keys()):
+    logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
+    logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
+    sys.exit(1)
 
 if not env_loaded or not "TOKEN" in os.environ:
     logger.critical('Could not find token from .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
@@ -763,6 +775,7 @@ async def delete(ctx, *, msg_id=None):
 async def about(ctx):
     embed = discord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
     embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
+    embed.add_field(name="View source code", value=config['repo'], inline=False)
     embed.set_footer(text=f"Version {version}")
     await ctx.send(embed=embed)
 
