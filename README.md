@@ -45,6 +45,13 @@ installing Upgrader).
 Unifier Micro is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before 
 doing so.
 
+## Support
+If you need support with Unifier Micro, join our [Discord server](https://discord.gg/a4KpNcARzK). Or, you can open a question in 
+issues.
+
+If you're using a modified version, please ask that version's maintainer for support. We do not provide official support for 
+modified versions of Unifier Micro.
+
 ## Acknowledgments
 We want to thank:
 - [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued (it
