@@ -14,6 +14,12 @@ Unifier Micro is a much lighter and less performant version of Unifier, built to
 Memory usage is minimized by removing certain values from `UnifierMessage` class, as well as not utilizing 
 multithreading and reducing caching.
 
+## How is this different from Unifier?
+Unifier is a much faster and versatile global chat bot. It uses threading and caching to significantly increase the 
+bridging speed, and supports other platforms. Unifier Micro, on the other hand, takes a low-memory approach, and lacks 
+the performance optimizations and platform support to significantly reduce memory usage. This reduces Unifier Micro's 
+speed, as well as limits the bot to support Discord only.
+
 ## Who should use this?
 Unifier Micro is built for small communities just wanting to give Unifier a spin, or communities with very limited 
 resources to run Unifier. For communities of scale with decent resources, we recommend using the [full-scale 
