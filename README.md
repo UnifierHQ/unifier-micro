@@ -5,6 +5,10 @@
 
 <p align=center>A much lighter version of <a href="https://github.com/greeeen-dev/unifier">Unifier</a></p>
 
+> [!NOTE]
+> Unifier Micro is **not** the same as Unifier. If you're looking for the full scale version, go
+> [here](https://github.com/greeeen-dev/unifier) instead.
+
 ## What is Unifier Micro?
 Unifier Micro is a much lighter and less performant version of Unifier, built to work on extremely low-end systems. 
 Memory usage is minimized by removing certain values from `UnifierMessage` class, as well as not utilizing 
