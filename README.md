@@ -5,6 +5,9 @@
 
 <p align=center>A much lighter version of <a href="https://github.com/greeeen-dev/unifier">Unifier</a></p>
 
+> [!WARNING]
+> Unifier is not public yet. Links leading to Unifier will return 404 errors.
+
 > [!NOTE]
 > Unifier Micro is **not** the same as Unifier. If you're looking for the full scale version, go
 > [here](https://github.com/greeeen-dev/unifier) instead.
