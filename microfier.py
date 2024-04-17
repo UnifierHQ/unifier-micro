@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 import sys
 import os
 
-version = '1.1.9'
+version = '1.1.10'
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
@@ -378,13 +378,10 @@ async def make(ctx,*,room):
     await ctx.send(f'Created room `{room}`!')
 
 @bot.command(hidden=True)
-async def addrule(ctx,*,args):
+async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
-    try:
-        room, rule = args.split(' ',1)
-    except:
-        return await ctx.send('Rule is missing.')
+    room = room.lower()
     if not room in list(db['rules'].keys()):
         return await ctx.send('This room does not exist!')
     db['rules'][room].append(rule)
@@ -392,13 +389,10 @@ async def addrule(ctx,*,args):
     await ctx.send('Added rule!')
 
 @bot.command(hidden=True)
-async def delrule(ctx,*,args):
+async def delrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
-    try:
-        room, rule = args.split(' ',1)
-    except:
-        return await ctx.send('Rule is missing.')
+    room = room.lower()
     try:
         rule = int(rule)
         if rule <= 0:
@@ -417,6 +411,7 @@ async def rules(ctx, *, room=''):
     """Displays room rules for the specified room."""
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
         return await ctx.send(':eyes:')
+    room = room.lower()
     if room == '' or not room:
         room = 'main'
 
@@ -445,6 +440,7 @@ async def rules(ctx, *, room=''):
 async def roomrestrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
     if room in db['restricted']:
@@ -459,6 +455,7 @@ async def roomrestrict(ctx,*,room):
 async def roomlock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
     if room in db['locked']:
