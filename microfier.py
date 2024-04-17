@@ -701,7 +701,7 @@ async def restrict(ctx, *, target):
     await ctx.send('User/server can no longer forward messages to this channel!')
 
 @bot.command(hidden=True)
-async def globalban(ctx, target, duration, *, reason):
+async def globalban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
     forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
@@ -735,12 +735,8 @@ async def globalban(ctx, target, duration, *, reason):
         mod = f'@{ctx.author.name}'
     else:
         mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-    if reason == '':
-        embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=f'no reason given',
-                              color=0xffcc00, timestamp=datetime.datetime.utcnow())
-    else:
-        embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
-                              timestamp=datetime.datetime.utcnow())
+    embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
+                          timestamp=datetime.datetime.utcnow())
     try:
         embed.set_author(name=mod, icon_url=ctx.author.avatar)
     except:
