@@ -369,6 +369,7 @@ async def removemod(ctx,*,userid):
 async def make(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can create rooms!')
+    room = room.lower()
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
     db['rooms'].update({room:{}})
@@ -509,6 +510,7 @@ async def bind(ctx, *, room=''):
         return await ctx.send('You don\'t have the necessary permissions.')
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can bind channels to restricted rooms.')
+    room = room.lower()
     if room == '' or not room:  # Added "not room" as a failback
         room = 'main'
         await ctx.send('**No room was given, defaulting to main**')
@@ -605,6 +607,7 @@ async def unbind(ctx, *, room=''):
         return await ctx.send('You must specify the room to unbind from.')
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
+    room = room.lower()
     try:
         data = db['rooms'][room]
     except:
