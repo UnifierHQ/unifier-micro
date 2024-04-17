@@ -766,7 +766,7 @@ async def globalban(ctx, target, duration, *, reason):
     await ctx.send('User was global banned!')
 
 @bot.command(aliases=['unban'])
-async def unrestrict(ctx, *, target):
+async def unrestrict(ctx, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
         return await ctx.send('You cannot unrestrict members/servers.')
