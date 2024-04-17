@@ -25,6 +25,7 @@ import datetime
 from dotenv import load_dotenv
 import sys
 import os
+import re
 
 version = '1.1.10'
 
@@ -370,6 +371,8 @@ async def make(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can create rooms!')
     room = room.lower()
+    if not bool(re.match("^[A-Za-z0-9_-]*$",room)):
+        return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
     db['rooms'].update({room:{}})
