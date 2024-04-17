@@ -685,9 +685,7 @@ async def restrict(ctx, *, target):
         if userid == ctx.guild.id:
             return await ctx.send('You can\'t restrict your own server :thinking:')
     except:
-        userid = target
-        if not len(userid) == 26:
-            return await ctx.send('Invalid user/server!')
+        return await ctx.send('Invalid user/server!')
     if userid in db['moderators']:
         return await ctx.send(
             'UniChat moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)')
@@ -775,9 +773,7 @@ async def unrestrict(ctx, *, target):
     try:
         userid = int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1))
     except:
-        userid = target
-        if not len(target) == 26:
-            return await ctx.send('Invalid user/server!')
+        return await ctx.send('Invalid user/server!')
     banlist = []
     if f'{ctx.guild.id}' in list(db['blocked'].keys()):
         banlist = db['blocked'][f'{ctx.guild.id}']
