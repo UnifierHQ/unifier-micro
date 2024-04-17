@@ -25,8 +25,9 @@ import datetime
 from dotenv import load_dotenv
 import sys
 import os
+import re
 
-version = '1.1.9'
+version = '1.1.10'
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, room):
@@ -369,6 +370,9 @@ async def removemod(ctx,*,userid):
 async def make(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can create rooms!')
+    room = room.lower()
+    if not bool(re.match("^[A-Za-z0-9_-]*$",room)):
+        return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
     db['rooms'].update({room:{}})
@@ -377,13 +381,10 @@ async def make(ctx,*,room):
     await ctx.send(f'Created room `{room}`!')
 
 @bot.command(hidden=True)
-async def addrule(ctx,*,args):
+async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
-    try:
-        room, rule = args.split(' ',1)
-    except:
-        return await ctx.send('Rule is missing.')
+    room = room.lower()
     if not room in list(db['rules'].keys()):
         return await ctx.send('This room does not exist!')
     db['rules'][room].append(rule)
@@ -391,13 +392,10 @@ async def addrule(ctx,*,args):
     await ctx.send('Added rule!')
 
 @bot.command(hidden=True)
-async def delrule(ctx,*,args):
+async def delrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
-    try:
-        room, rule = args.split(' ',1)
-    except:
-        return await ctx.send('Rule is missing.')
+    room = room.lower()
     try:
         rule = int(rule)
         if rule <= 0:
@@ -416,6 +414,7 @@ async def rules(ctx, *, room=''):
     """Displays room rules for the specified room."""
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
         return await ctx.send(':eyes:')
+    room = room.lower()
     if room == '' or not room:
         room = 'main'
 
@@ -444,6 +443,7 @@ async def rules(ctx, *, room=''):
 async def roomrestrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
     if room in db['restricted']:
@@ -458,6 +458,7 @@ async def roomrestrict(ctx,*,room):
 async def roomlock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
     if room in db['locked']:
@@ -509,6 +510,7 @@ async def bind(ctx, *, room=''):
         return await ctx.send('You don\'t have the necessary permissions.')
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can bind channels to restricted rooms.')
+    room = room.lower()
     if room == '' or not room:  # Added "not room" as a failback
         room = 'main'
         await ctx.send('**No room was given, defaulting to main**')
@@ -605,6 +607,7 @@ async def unbind(ctx, *, room=''):
         return await ctx.send('You must specify the room to unbind from.')
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
+    room = room.lower()
     try:
         data = db['rooms'][room]
     except:
