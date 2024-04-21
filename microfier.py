@@ -543,6 +543,25 @@ async def rooms(ctx):
     embed.title = f'UniChat rooms (Total: `{count}`)'
     await ctx.send(embed=embed)
 
+@bot.command(aliases=['guilds'])
+async def servers(ctx,*,room='main'):
+    try:
+        data = db['rooms'][room]
+    except:
+        return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of all rooms.')
+    text = ''
+    for guild_id in data:
+        try:
+            name = bot.get_guild(int(guild_id)).name
+        except:
+            continue
+        if len(text)==0:
+            text = f'- {name} (`{guild_id}`)'
+        else:
+            text = f'{text}\n- {name} (`{guild_id}`)'
+    embed = discord.Embed(title=f'Servers connected to `{room}`',description=text)
+    await ctx.send(embed=embed)
+
 @bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
 async def bind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
@@ -705,7 +724,7 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
     forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
-                duration.lower() == 'forever' or duration.lower() == 'indefinite')
+               duration.lower() == 'forever' or duration.lower() == 'indefinite')
     if forever:
         duration = 0
     else:
