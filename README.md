@@ -3,14 +3,11 @@
   
   Unifier Micro (microfier)</h1>
 
-<p align=center>A much lighter version of <a href="https://github.com/greeeen-dev/unifier">Unifier</a></p>
-
-> [!WARNING]
-> Unifier is not public yet. Links leading to Unifier will return 404 errors.
+<p align=center>A much lighter version of <a href="https://github.com/UnifierHQ/unifier">Unifier</a></p>
 
 > [!NOTE]
 > Unifier Micro is **not** the same as Unifier. If you're looking for the full scale version, go
-> [here](https://github.com/greeeen-dev/unifier) instead.
+> [here](https://github.com/UnifierHQ/unifier) instead.
 
 ## What is Unifier Micro?
 Unifier Micro is a much lighter and less performant version of Unifier, built to work on extremely low-end systems. 
@@ -26,7 +23,7 @@ speed, as well as limits the bot to support Discord only.
 ## Who should use this?
 Unifier Micro is built for small communities just wanting to give Unifier a spin, or communities with very limited 
 resources to run Unifier. For communities of scale with decent resources, we recommend using the [full-scale 
-version](https://github.com/greeeen-dev/unifier) instead.
+version](https://github.com/UnifierHQ/unifier) instead.
 
 ## Features
 ### Basic features
@@ -50,9 +47,9 @@ servers.
 Unifier setup guides can be used to set up Unifier Micro, although some parts won't apply to Unifier Micro (such as 
 installing Upgrader).
 
-- [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
+- [If you're using an existing Unifier client](https://unifier-wiki.pixels.onl/setup/getting-started)
 
-- [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
+- [If you're hosting your own Unifier client](https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started)
 
 ## License
 Unifier Micro is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before 
