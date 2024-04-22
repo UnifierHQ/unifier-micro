@@ -27,7 +27,7 @@ import sys
 import os
 import re
 
-version = '1.1.10'
+version = '1.1.11'
 
 def timetoint(t,timeoutcap=False):
     try:
