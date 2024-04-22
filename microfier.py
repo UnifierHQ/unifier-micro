@@ -925,6 +925,23 @@ async def on_message(message):
     if message.content.startswith(bot.command_prefix) and not message.author.bot:
         return await bot.process_commands(message)
 
+    hooks = await message.channel.webhooks()
+
+    roomname = None
+    for room in list(db['rooms'].keys()):
+        try:
+            for hook in hooks:
+                if hook.id == db['rooms'][room][f'{message.guild.id}'][0]:
+                    roomname = room
+                    break
+        except:
+            continue
+        if roomname:
+            break
+
+    if not roomname:
+        return
+
     if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
             'discordapp.com/invite/' in message.content):
         try:
@@ -949,23 +966,6 @@ async def on_message(message):
             db.save_data()
         else:
             return
-
-    hooks = await message.channel.webhooks()
-
-    roomname = None
-    for room in list(db['rooms'].keys()):
-        try:
-            for hook in hooks:
-                if hook.id==db['rooms'][room][f'{message.guild.id}'][0]:
-                    roomname = room
-                    break
-        except:
-            continue
-        if roomname:
-            break
-
-    if not roomname:
-        return
 
     if is_room_locked(roomname,db) and not message.author.id in db['moderators']:
         return
