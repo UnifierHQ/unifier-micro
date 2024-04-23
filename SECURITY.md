@@ -19,3 +19,21 @@ reports will be taken down and may result in sanctions.
 
 Instead, please either DM a developer on Discord, or report the 
 vulnerability to us, so we can privately patch the vulnerability.
+
+### What counts as a vulnerability?
+Here are examples of what you **should** report to us as security
+vulnerabilities:
+- A bug in the code that allows third parties to get access to moderator
+  permissions
+- A bug in the code that allows third parties to execute malicious code
+  on your system
+- etc.
+
+And examples of what you **shouldn't** report to us:
+- Lack of protection against certain server raid types (this is better
+  off as a **feature suggestion**)
+- Lack of certain moderation tools (this is better off as a **feature
+  suggestion**)
+- Unprofessional moderation on Unifier instances (sort this out with your
+  instance's admins)
+- etc.
