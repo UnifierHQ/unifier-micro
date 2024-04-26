@@ -27,7 +27,7 @@ import sys
 import os
 import re
 
-version = '1.1.11'
+version = '1.1.14'
 
 def timetoint(t,timeoutcap=False):
     try:
@@ -370,7 +370,7 @@ async def addmod(ctx,*,userid):
         return await ctx.send('Not a valid user!')
     if userid in db['moderators']:
         return await ctx.send('This user is already a moderator!')
-    if is_user_admin(userid):
+    if is_user_admin(userid) or user.bot:
         return await ctx.send('are you fr')
     db['moderators'].append(userid)
     db.save_data()
