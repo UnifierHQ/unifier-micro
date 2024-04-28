@@ -27,7 +27,7 @@ import sys
 import os
 import re
 
-version = '1.1.14'
+version = '1.1.14-patch'
 
 def timetoint(t,timeoutcap=False):
     try:
@@ -254,19 +254,17 @@ db.load_data()
 messages = []
 
 ut_total = round(time.time())
-ut_connected = 0
-ut_conntime = round(time.time())
-ut_measuring = True
+disconnects = 0
 
-#intents = discord.Intents(
-#    emojis=True,
-#    emojis_and_stickers=True,
-#    guild_messages=True,
-#    guilds=True,
-#    message_content=True,
-#    messages=True,
-#    webhooks=True
-#)
+# intents = discord.Intents(
+#     emojis=True,
+#     emojis_and_stickers=True,
+#     guild_messages=True,
+#     guilds=True,
+#     message_content=True,
+#     messages=True,
+#     webhooks=True
+# )
 
 intents = discord.Intents.all()
 
@@ -305,21 +303,9 @@ async def on_ready():
     logger.info('Unifier is ready!')
 
 @bot.event
-async def on_connect():
-    global ut_measuring
-    global ut_conntime
-    if not ut_measuring:
-        ut_measuring = True
-        ut_conntime = round(time.time())
-
-@bot.event
 async def on_disconnect():
-    global ut_measuring
-    global ut_connected
-    global ut_conntime
-    if ut_measuring:
-        ut_connected += round(time.time()) - ut_conntime
-        ut_measuring = False
+    global disconnects
+    disconnects += 1
 
 @bot.command()
 async def uptime(ctx):
@@ -331,24 +317,14 @@ async def uptime(ctx):
     td = datetime.timedelta(seconds=t)
     d = td.days
     h, m, s = str(td).split(',')[len(str(td).split(','))-1].split(':')
-    tup = t
     embed.add_field(
         name='Total uptime',
         value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
         inline=False
     )
-    t = ut_connected + round(time.time()) - ut_conntime
-    td = datetime.timedelta(seconds=t)
-    d = td.days
-    h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
     embed.add_field(
-        name='Connected uptime',
-        value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
-        inline=False
-    )
-    embed.add_field(
-        name='Connected uptime %',
-        value=f'{round((t/tup)*100,2)}%',
+        name='Disconnects/hr',
+        value=f'{round(disconnects / (t / 3600), 2)}',
         inline=False
     )
     await ctx.send(embed=embed)
