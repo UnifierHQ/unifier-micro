@@ -16,8 +16,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands, tasks
+import nextcord
+from nextcord.ext import commands, tasks
 import json
 import logging
 import time
@@ -26,8 +26,9 @@ from dotenv import load_dotenv
 import sys
 import os
 import re
+from utils import log, ui
 
-version = '1.1.14-patch'
+version = '2.0.0'
 
 def timetoint(t,timeoutcap=False):
     try:
@@ -110,79 +111,6 @@ class AutoSaveDict(dict):
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
 
-class CustomFormatter(logging.Formatter):
-    """The code in this class was based on code from discord.py.
-    Please check EXTERNAL_LICENSES.txt for attribution and licensing info."""
-
-    def __init__(self, count):
-        super().__init__()
-        log_colors = {
-            'debug': '\x1b[45;1m',
-            'info': '\x1b[36;1m',
-            'warning': '\x1b[33;1m',
-            'error': '\x1b[31;1m',
-            'critical': '\x1b[37;41m',
-        }
-
-        self.log_formats = {
-            logging.DEBUG: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0  {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.INFO: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F4DC {log_colors["info"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.WARNING: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002755 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.ERROR: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0000274C {log_colors["error"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.CRITICAL: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6D1 {log_colors["critical"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            'unknown': logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002754 %(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            )
-        }
-
-    def format(self, log):
-        useformat = self.log_formats.get(log.levelno)
-        if not useformat:
-            useformat = self.log_formats.get('unknown')
-
-        if log.exc_info:
-            text = useformat.formatException(log.exc_info)
-            log.exc_text = f'\x1b[31m{text}\x1b[0m'
-            output = useformat.format(log)
-            log.exc_text = None
-        else:
-            output = useformat.format(log)
-
-        return output
-
-def buildlogger(package, name, level, handler=None):
-    if not handler:
-        handler = logging.StreamHandler()
-
-    handler.setLevel(level)
-    handler.setFormatter(CustomFormatter(len(package) + 5))
-    library, _, _ = __name__.partition('.')
-    logger = logging.getLogger(package + '.' + name)
-
-    # Prevent duplicate output
-    while logger.hasHandlers():
-        logger.removeHandler(logger.handlers[0])
-
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    return logger
-
 def is_user_admin(id):
     try:
         global admin_ids
@@ -227,7 +155,7 @@ level = logging.DEBUG if config['debug'] else logging.INFO
 package = config['package']
 admin_ids = config['admin_ids']
 
-logger = buildlogger(package,'core',level)
+logger = log.buildlogger(package,'core',level)
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -256,7 +184,7 @@ messages = []
 ut_total = round(time.time())
 disconnects = 0
 
-# intents = discord.Intents(
+# intents = nextcord.Intents(
 #     emojis=True,
 #     emojis_and_stickers=True,
 #     guild_messages=True,
@@ -266,9 +194,9 @@ disconnects = 0
 #     webhooks=True
 # )
 
-intents = discord.Intents.all()
+intents = nextcord.Intents.all()
 
-mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 
@@ -309,7 +237,7 @@ async def on_disconnect():
 
 @bot.command()
 async def uptime(ctx):
-    embed = discord.Embed(
+    embed = nextcord.Embed(
         title=f'{bot.user.global_name} uptime',
         description=f'The bot has been up since <t:{ut_total}:f>.'
     )
@@ -450,7 +378,7 @@ async def rules(ctx, *, room=''):
         else:
             text = f'{text}\n{index}. {rule}'
         index += 1
-    embed = discord.Embed(title='Room rules', description=text)
+    embed = nextcord.Embed(title='Room rules', description=text)
     embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
     await ctx.send(embed=embed)
 
@@ -486,7 +414,7 @@ async def roomlock(ctx,*,room):
 
 @bot.command()
 async def rooms(ctx):
-    embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{bot.command_prefix}bind <room>` to bind to a room.')
+    embed = nextcord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{bot.command_prefix}bind <room>` to bind to a room.')
     if len(db['rooms'])==0:
         embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
         return await ctx.send(embed=embed)
@@ -509,7 +437,7 @@ async def rooms(ctx):
         for guild_id in db['rooms'][room]:
             try:
                 guild = bot.get_guild(int(guild_id))
-                online += len(list(filter(lambda x: (x.status!=discord.Status.offline and x.status!=discord.Status.invisible), guild.members)))
+                online += len(list(filter(lambda x: (x.status!=nextcord.Status.offline and x.status!=nextcord.Status.invisible), guild.members)))
                 members += len(guild.members)
                 guilds += 1
             except:
@@ -535,7 +463,7 @@ async def servers(ctx,*,room='main'):
             text = f'- {name} (`{guild_id}`)'
         else:
             text = f'{text}\n- {name} (`{guild_id}`)'
-    embed = discord.Embed(title=f'Servers connected to `{room}`',description=text)
+    embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
     await ctx.send(embed=embed)
 
 @bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
@@ -552,7 +480,7 @@ async def bind(ctx, *, room=''):
         data = db['rooms'][room]
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of rooms.')
-    embed = discord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
+    embed = nextcord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
     msg = await ctx.send(embed=embed)
     for roomname in list(db['rooms'].keys()):
         # Prevent duplicate binding
@@ -586,38 +514,41 @@ async def bind(ctx, *, room=''):
                     text = f'{text}\n{index}. {rule}'
                 index += 1
         text = f'{text}\n\nPlease display these rules somewhere accessible.'
-        embed = discord.Embed(title='Please agree to the room rules first:', description=text)
+        embed = nextcord.Embed(title='Please agree to the room rules first:', description=text)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-        ButtonStyle = discord.ButtonStyle
+        ButtonStyle = nextcord.ButtonStyle
         row = [
-            discord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False)
+            nextcord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False)
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = ui.ActionRow(row[0], row[1])
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await msg.edit(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and (
-                    interaction.custom_id == 'accept' or
-                    interaction.custom_id == 'reject'
+                    interaction.data['custom_id'] == 'accept' or
+                    interaction.data['custom_id'] == 'reject'
             ) and interaction.channel.id == ctx.channel.id
 
         try:
-            resp = await bot.wait_for("component_interaction", check=check, timeout=60.0)
+            resp = await bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(components=components)
+            btns = ui.ActionRow(row[0], row[1])
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(view=components)
             return await ctx.send('Timed out.')
         row[0].disabled = True
         row[1].disabled = True
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await resp.response.edit_message(components=components)
-        if resp.custom_id == 'reject':
+        btns = ui.ActionRow(row[0], row[1])
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await resp.response.edit_message(view=components)
+        if resp.data['custom_id'] == 'reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         data = db['rooms'][room]
@@ -730,7 +661,7 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
         mod = f'@{ctx.author.name}'
     else:
         mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-    embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
+    embed = nextcord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
                           timestamp=datetime.datetime.utcnow())
     try:
         embed.set_author(name=mod, icon_url=ctx.author.avatar)
@@ -883,7 +814,7 @@ async def delete(ctx, *, msg_id=None):
 
 @bot.command()
 async def about(ctx):
-    embed = discord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
+    embed = nextcord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
     embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
     embed.add_field(name="View source code", value=config['repo'], inline=False)
     embed.set_footer(text=f"Version {version}")
@@ -918,7 +849,7 @@ async def on_message(message):
     if not roomname:
         return
 
-    if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+    if ('nextcord.gg/' in message.content or 'nextcord.com/invite/' in message.content or
             'discordapp.com/invite/' in message.content):
         try:
             await message.delete()
@@ -998,26 +929,27 @@ async def on_message(message):
             except:
                 files.append(await attachment.to_file(use_cached=True, spoiler=False))
 
-        webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
         components = None
 
         if reply_msg:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.gray,
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
                         label=f'Replying to [unknown]',
                         disabled=True
                     )
                 ),
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.blurple,
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
                         label=f'x{len(message.attachments)}',
                         emoji='\U0001F3DE',
                         disabled=True
-                    ) if donotshow else discord.ui.Button(
-                        style=discord.ButtonStyle.blurple,
+                    ) if donotshow else nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
                         label=trimmed,
                         disabled=True
                     )
@@ -1026,29 +958,30 @@ async def on_message(message):
 
             ch = guild.get_channel(webhook.channel_id)
             if ch:
-                url = f'https://discord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
+                url = f'https://nextcord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
                 try:
                     reply_author = await bot.fetch_user(int(reply_msg.author_id))
                     reply_name = '@'+reply_author.global_name
                 except:
                     reply_name = '[unknown]'
 
-                components = discord.ui.MessageComponents(
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.url,
+                components = ui.MessageComponents()
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.url,
                             label=f'Replying to {reply_name}',
                             url=url
                         )
                     ),
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
                             label=f'x{len(message.attachments)}',
                             emoji='\U0001F3DE',
                             disabled=True
-                        ) if donotshow else discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
+                        ) if donotshow else nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
                             label=trimmed,
                             disabled=True
                         )
@@ -1064,7 +997,7 @@ async def on_message(message):
             avatar_url=url,
             username=message.author.global_name,
             files=files,
-            components=components,
+            view=components,
             content=message.content,
             wait=True
         )
