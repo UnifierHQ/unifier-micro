@@ -240,7 +240,7 @@ async def on_disconnect():
 @bot.command()
 async def uptime(ctx):
     embed = nextcord.Embed(
-        title=f'{bot.user.global_name} uptime',
+        title=f'{bot.user.global_name or bot.user.name} uptime',
         description=f'The bot has been up since <t:{ut_total}:f>.'
     )
     t = round(time.time()) - ut_total
@@ -1234,7 +1234,7 @@ async def on_message(message):
                 url = f'https://nextcord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
                 try:
                     reply_author = await bot.fetch_user(int(reply_msg.author_id))
-                    reply_name = '@'+reply_author.global_name
+                    reply_name = '@'+reply_author.global_name or reply_author.name
                 except:
                     reply_name = '[unknown]'
 
@@ -1268,7 +1268,7 @@ async def on_message(message):
 
         sent = await webhook.send(
             avatar_url=url,
-            username=message.author.global_name,
+            username=message.author.global_name or message.author.name,
             files=files,
             view=components,
             content=message.content,
