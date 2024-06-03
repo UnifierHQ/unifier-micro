@@ -628,6 +628,8 @@ async def addrule(ctx,room,*,rule):
     room = room.lower()
     if not room in list(db['rules'].keys()):
         return await ctx.send('This room does not exist!')
+    if len(db['rules'][room]) >= 25:
+        return await ctx.send('You can only have up to 25 rules in a room!')
     db['rules'][room].append(rule)
     db.save_data()
     await ctx.send('Added rule!')
