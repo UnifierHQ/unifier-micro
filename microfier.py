@@ -65,7 +65,7 @@ def timetoint(t,timeoutcap=False):
             total += (60 * multi)
         elif part.endswith('s'):
             multi = int(part[:-1])
-            total += (multi)
+            total += multi
         else:
             raise ValueError('invalid identifier')
     return total
@@ -518,10 +518,13 @@ async def bind(ctx, *, room=''):
         text = f'{text}\n\nPlease display these rules somewhere accessible.'
         embed = nextcord.Embed(title='Please agree to the room rules first:', description=text)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-        ButtonStyle = nextcord.ButtonStyle
         row = [
-            nextcord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False),
-            nextcord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False)
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False
+            )
         ]
         btns = ui.ActionRow(row[0], row[1])
         components = ui.MessageComponents()
@@ -664,7 +667,7 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
     else:
         mod = f'{ctx.author.name}#{ctx.author.discriminator}'
     embed = nextcord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
-                          timestamp=datetime.datetime.utcnow())
+                           timestamp=datetime.datetime.now(datetime.UTC))
     try:
         embed.set_author(name=mod, icon_url=ctx.author.avatar)
     except:
