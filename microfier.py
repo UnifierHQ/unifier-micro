@@ -533,7 +533,7 @@ async def help(ctx):
             descmatch = True
             match = 0
 
-@bot.command()
+@bot.command(description='Shows bot uptime.')
 async def uptime(ctx):
     embed = nextcord.Embed(
         title=f'{bot.user.global_name or bot.user.name} uptime',
@@ -555,7 +555,7 @@ async def uptime(ctx):
     )
     await ctx.send(embed=embed)
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Adds a moderator to the instance.')
 async def addmod(ctx,*,userid):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can manage moderators!')
@@ -621,7 +621,7 @@ async def make(ctx,*,room):
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description="Adds a given rule to a given room.")
 async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
@@ -634,7 +634,7 @@ async def addrule(ctx,room,*,rule):
     db.save_data()
     await ctx.send('Added rule!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description="Removes a given rule from a given room.")
 async def delrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
@@ -652,7 +652,7 @@ async def delrule(ctx,room,*,rule):
     await ctx.send('Removed rule!')
 
 
-@bot.command()
+@bot.command(description='Displays room rules for the specified room.')
 async def rules(ctx, *, room=''):
     """Displays room rules for the specified room."""
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
@@ -697,7 +697,10 @@ async def roomrestrict(ctx,*,room):
         await ctx.send(f'Restricted `{room}`!')
     db.save_data()
 
-@bot.command(hidden=True)
+@bot.command(
+    hidden=True,
+    description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
+)
 async def roomlock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
@@ -712,7 +715,32 @@ async def roomlock(ctx,*,room):
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
 
-@bot.command()
+@bot.command(description='Measures bot latency.')
+async def ping(ctx):
+    t = time.time()
+    msg = await ctx.send('Ping!')
+    diff = round((time.time() - t) * 1000, 1)
+    text = 'Pong! :ping_pong:'
+    if diff <= 300 and bot.latency <= 0.2:
+        embed = nextcord.Embed(title='Normal - all is well!',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+                               color=0x00ff00)
+    elif diff <= 600 and bot.latency <= 0.5:
+        embed = nextcord.Embed(title='Fair - could be better.',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+                               color=0xffff00)
+    elif diff <= 2000 and bot.latency <= 1.0:
+        embed = nextcord.Embed(title='SLOW - __**oh no.**__',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+                               color=0xff0000)
+    else:
+        text = 'what'
+        embed = nextcord.Embed(title='**WAY TOO SLOW**',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+                               color=0xbb00ff)
+    await msg.edit(content=text, embed=embed)
+
+@bot.command(description='Shows a list of rooms.')
 async def rooms(ctx):
     show_restricted = False
     show_locked = False
@@ -836,7 +864,8 @@ async def rooms(ctx):
             offset = 0
             for x in range(len(roomlist)):
                 room = roomlist[x - offset]
-                if (not show_restricted and is_room_restricted(roomlist[x - offset], db) or
+                if (
+                        not show_restricted and is_room_restricted(roomlist[x - offset], db) or
                         not show_locked and is_room_locked(roomlist[x - offset], db)
                 ) and not show_restricted or not search_filter(query,room):
                     roomlist.pop(x - offset)
@@ -1101,7 +1130,7 @@ async def rooms(ctx):
             descmatch = True
             match = 0
 
-@bot.command(aliases=['guilds'])
+@bot.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
 async def servers(ctx,*,room='main'):
     try:
         data = db['rooms'][room]
@@ -1120,7 +1149,7 @@ async def servers(ctx,*,room='main'):
     embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
     await ctx.send(embed=embed)
 
-@bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
+@bot.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
 async def bind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
@@ -1223,7 +1252,7 @@ async def bind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['unlink', 'disconnect'])
+@bot.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
 async def unbind(ctx, *, room=''):
     if room == '':
         return await ctx.send('You must specify the room to unbind from.')
@@ -1256,7 +1285,7 @@ async def unbind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['ban'])
+@bot.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
 async def restrict(ctx, *, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
@@ -1283,7 +1312,7 @@ async def restrict(ctx, *, target):
     db.save_data()
     await ctx.send('User/server can no longer forward messages to this channel!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
 async def globalban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
@@ -1344,7 +1373,7 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
 
     await ctx.send('User was global banned!')
 
-@bot.command(aliases=['unban'])
+@bot.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
 async def unrestrict(ctx, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
@@ -1362,7 +1391,7 @@ async def unrestrict(ctx, target):
     db.save_data()
     await ctx.send('User/server can now forward messages to this channel!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
 async def globalunban(ctx, *, target):
     if not ctx.author.id in db['moderators']:
         return
@@ -1377,7 +1406,7 @@ async def globalunban(ctx, *, target):
     db.save_data()
     await ctx.send('unbanned, nice')
 
-@bot.command(aliases=['find'])
+@bot.command(aliases=['find'],description='Identifies the origin of a message.')
 async def identify(ctx):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members) and not ctx.author.id in db['moderators']:
@@ -1407,7 +1436,7 @@ async def identify(ctx):
 
     await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id})')
 
-@bot.command()
+@bot.command(description='Deletes a message.')
 async def delete(ctx, *, msg_id=None):
     """Deletes all bridged messages. Does not delete the original."""
     gbans = db['banned']
@@ -1469,7 +1498,7 @@ async def delete(ctx, *, msg_id=None):
             logger.exception('Something went wrong!')
             await ctx.send('Something went wrong.')
 
-@bot.command()
+@bot.command(description='Shows bot info.')
 async def about(ctx):
     embed = nextcord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
     embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
