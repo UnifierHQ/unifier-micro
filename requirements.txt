@@ -1,2 +1,2 @@
-novus>=0.2.4
+nextcord
 python-dotenv

@@ -16,8 +16,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands, tasks
+import nextcord
+from nextcord.ext import commands, tasks
 import json
 import logging
 import time
@@ -26,8 +26,10 @@ from dotenv import load_dotenv
 import sys
 import os
 import re
+from utils import log, ui
+import math
 
-version = '1.1.14'
+version = '2.0.0'
 
 def timetoint(t,timeoutcap=False):
     try:
@@ -63,7 +65,7 @@ def timetoint(t,timeoutcap=False):
             total += (60 * multi)
         elif part.endswith('s'):
             multi = int(part[:-1])
-            total += (multi)
+            total += multi
         else:
             raise ValueError('invalid identifier')
     return total
@@ -110,79 +112,6 @@ class AutoSaveDict(dict):
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
 
-class CustomFormatter(logging.Formatter):
-    """The code in this class was based on code from discord.py.
-    Please check EXTERNAL_LICENSES.txt for attribution and licensing info."""
-
-    def __init__(self, count):
-        super().__init__()
-        log_colors = {
-            'debug': '\x1b[45;1m',
-            'info': '\x1b[36;1m',
-            'warning': '\x1b[33;1m',
-            'error': '\x1b[31;1m',
-            'critical': '\x1b[37;41m',
-        }
-
-        self.log_formats = {
-            logging.DEBUG: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0  {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.INFO: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F4DC {log_colors["info"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.WARNING: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002755 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.ERROR: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0000274C {log_colors["error"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            logging.CRITICAL: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6D1 {log_colors["critical"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            ),
-            'unknown': logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002754 %(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            )
-        }
-
-    def format(self, log):
-        useformat = self.log_formats.get(log.levelno)
-        if not useformat:
-            useformat = self.log_formats.get('unknown')
-
-        if log.exc_info:
-            text = useformat.formatException(log.exc_info)
-            log.exc_text = f'\x1b[31m{text}\x1b[0m'
-            output = useformat.format(log)
-            log.exc_text = None
-        else:
-            output = useformat.format(log)
-
-        return output
-
-def buildlogger(package, name, level, handler=None):
-    if not handler:
-        handler = logging.StreamHandler()
-
-    handler.setLevel(level)
-    handler.setFormatter(CustomFormatter(len(package) + 5))
-    library, _, _ = __name__.partition('.')
-    logger = logging.getLogger(package + '.' + name)
-
-    # Prevent duplicate output
-    while logger.hasHandlers():
-        logger.removeHandler(logger.handlers[0])
-
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    return logger
-
 def is_user_admin(id):
     try:
         global admin_ids
@@ -227,7 +156,7 @@ level = logging.DEBUG if config['debug'] else logging.INFO
 package = config['package']
 admin_ids = config['admin_ids']
 
-logger = buildlogger(package,'core',level)
+logger = log.buildlogger(package,'core',level)
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -254,25 +183,24 @@ db.load_data()
 messages = []
 
 ut_total = round(time.time())
-ut_connected = 0
-ut_conntime = round(time.time())
-ut_measuring = True
+disconnects = 0
 
-#intents = discord.Intents(
-#    emojis=True,
-#    emojis_and_stickers=True,
-#    guild_messages=True,
-#    guilds=True,
-#    message_content=True,
-#    messages=True,
-#    webhooks=True
-#)
+# intents = nextcord.Intents(
+#     emojis=True,
+#     emojis_and_stickers=True,
+#     guild_messages=True,
+#     guilds=True,
+#     message_content=True,
+#     messages=True,
+#     webhooks=True
+# )
 
-intents = discord.Intents.all()
+intents = nextcord.Intents.all()
 
-mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
+bot.remove_command('help')
 
 asciiart = """
   _    _       _  __ _           __  __ _                
@@ -305,55 +233,329 @@ async def on_ready():
     logger.info('Unifier is ready!')
 
 @bot.event
-async def on_connect():
-    global ut_measuring
-    global ut_conntime
-    if not ut_measuring:
-        ut_measuring = True
-        ut_conntime = round(time.time())
-
-@bot.event
 async def on_disconnect():
-    global ut_measuring
-    global ut_connected
-    global ut_conntime
-    if ut_measuring:
-        ut_connected += round(time.time()) - ut_conntime
-        ut_measuring = False
+    global disconnects
+    disconnects += 1
 
-@bot.command()
+@bot.command(description='Shows this command.')
+async def help(ctx):
+    show_sysmgr = False
+    show_admin = False
+    show_moderation = False
+
+    admin_restricted = [
+        'addmod','delmod','make','roomdesc','roomlock','roomrestrict','addrule','delrule'
+    ]
+
+    mod_restricted = [
+        'globalban','globalunban','warn','delwarn','delban'
+    ]
+
+    if ctx.author.id == config['owner']:
+        show_sysmgr = True
+        show_admin = True
+        show_moderation = True
+    elif ctx.author.id in config['admin_ids']:
+        show_admin = True
+        show_moderation = True
+    elif ctx.author.id in db['moderators']:
+        show_moderation = True
+
+    panel = 1
+    limit = 20
+    page = 0
+    match = 0
+    namematch = False
+    descmatch = False
+    cogname = 'all'
+    cmdname = ''
+    query = ''
+    msg = None
+    interaction = None
+
+    while True:
+        embed = nextcord.Embed(color=0xed4545)
+        maxpage = 0
+        components = ui.MessageComponents()
+
+        if panel==1:
+            cmds = list(bot.commands)
+
+            offset = 0
+
+            def search_filter(query, query_cmd):
+                if match==0:
+                    return (
+                        query.lower() in query_cmd.qualified_name and namematch or
+                        query.lower() in query_cmd.description.lower() and descmatch
+                    )
+                elif match==1:
+                    return (
+                        ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                        ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
+                    )
+
+            for index in range(len(cmds)):
+                cmd = cmds[index-offset]
+                if (
+                        cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
+                        cmd.qualified_name in mod_restricted and not show_moderation
+                ) and not show_sysmgr or (
+                        cogname=='search' and not search_filter(query,cmd)
+                ):
+                    cmds.pop(index-offset)
+                    offset += 1
+
+            embed.title = (
+                f'{bot.user.global_name or bot.user.name} help / search' if cogname == 'search' else
+                f'{bot.user.global_name or bot.user.name} help'
+            )
+            embed.description = 'Choose a command to view its info!'
+
+            if len(cmds)==0:
+                maxpage = 0
+                embed.add_field(
+                    name='No commands',
+                    value=(
+                        'There are no commands matching your search query.' if cogname=='search' else
+                        'There are no commands in this extension.'
+                    ),
+                    inline=False
+                )
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Command...',disabled=True
+                )
+                selection.add_option(
+                    label='No commands'
+                )
+            else:
+                maxpage = math.ceil(len(cmds) / limit) - 1
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
+                )
+
+                cmds = await bot.loop.run_in_executor(
+                    None,lambda: sorted(
+                        cmds,
+                        key=lambda x: x.qualified_name.lower()
+                    )
+                )
+
+                for x in range(limit):
+                    index = (page * limit) + x
+                    if index >= len(cmds):
+                        break
+                    cmd = cmds[index]
+                    embed.add_field(
+                        name=f'`{cmd.qualified_name}`',
+                        value=cmd.description if cmd.description else 'No description provided',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=cmd.qualified_name,
+                        description=(cmd.description if len(
+                            cmd.description
+                        ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
+                                     ) if cmd.description else 'No description provided',
+                        value=cmd.qualified_name
+                    )
+
+            if cogname=='search':
+                embed.description = f'Searching: {query} (**{len(cmds)}** results)'
+                maxcount = (page+1)*limit
+                if maxcount > len(cmds):
+                    maxcount = len(cmds)
+                embed.set_footer(
+                    text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
+                )
+
+            components.add_row(
+                ui.ActionRow(
+                    selection
+                )
+            )
+
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Previous',
+                        custom_id='prev',
+                        disabled=page <= 0
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Next',
+                        custom_id='next',
+                        disabled=page >= maxpage
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green,
+                        label='Search',
+                        custom_id='search',
+                        emoji='\U0001F50D'
+                    )
+                )
+            )
+            if cogname=='search':
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            custom_id='match',
+                            label=(
+                                'Matches any of' if match==0 else
+                                'Matches both'
+                            ),
+                            style=(
+                                nextcord.ButtonStyle.green if match==0 else
+                                nextcord.ButtonStyle.blurple
+                            ),
+                            emoji=(
+                                '\U00002194' if match==0 else
+                                '\U000023FA'
+                            )
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='name',
+                            label='Command name',
+                            style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='desc',
+                            label='Command description',
+                            style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
+                        )
+                    )
+                )
+            if cogname=='search':
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+        elif panel==2:
+            cmd = bot.get_command(cmdname)
+            embed.title = (
+                f'{bot.user.global_name or bot.user.name} help / search / {cmdname}' if cogname=='search' else
+                f'{bot.user.global_name or bot.user.name} help / {cmdname}'
+            )
+            embed.description =(
+                f'# **`{bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+            )
+            if len(cmd.aliases) > 0:
+                aliases = []
+                for alias in cmd.aliases:
+                    aliases.append(f'`{bot.command_prefix}{alias}`')
+                embed.add_field(
+                    name='Aliases',value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                )
+            embed.add_field(name='Usage', value=(
+                f'`{bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`{bot.command_prefix}{cmdname}`'), inline=False
+            )
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Back',
+                        custom_id='back',
+                    )
+                )
+            )
+
+        if not cogname=='search' and panel==1:
+            embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
+        if not msg:
+            msg = await ctx.send(embed=embed,view=components,reference=ctx.message,mention_author=False)
+        else:
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(embed=embed,view=components)
+        embed.clear_fields()
+
+        def check(interaction):
+            return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+        try:
+            interaction = await bot.wait_for('interaction',check=check,timeout=60)
+        except:
+            await msg.edit(view=None)
+            break
+        if interaction.type==nextcord.InteractionType.component:
+            if interaction.data['custom_id']=='selection':
+                if panel==0:
+                    cogname = interaction.data['values'][0]
+                elif panel==1:
+                    cmdname = interaction.data['values'][0]
+                if cogname=='all':
+                    cogname = ''
+                panel += 1
+                page = 0
+            elif interaction.data['custom_id'] == 'back':
+                panel -= 1
+                if panel < 1:
+                    panel = 1
+                    cogname = 'all'
+                page = 0
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+            elif interaction.data['custom_id'] == 'search':
+                modal = nextcord.ui.Modal(title='Search...',auto_defer=False)
+                modal.add_item(
+                    nextcord.ui.TextInput(
+                        label='Search query',
+                        style=nextcord.TextInputStyle.short,
+                        placeholder='Type a command...'
+                    )
+                )
+                await interaction.response.send_modal(modal)
+            elif interaction.data['custom_id'] == 'match':
+                match += 1
+                if match > 1:
+                    match = 0
+            elif interaction.data['custom_id'] == 'name':
+                namematch = not namematch
+                if not namematch and not descmatch:
+                    namematch = True
+            elif interaction.data['custom_id'] == 'desc':
+                descmatch = not descmatch
+                if not namematch and not descmatch:
+                    descmatch = True
+        elif interaction.type==nextcord.InteractionType.modal_submit:
+            panel = 1
+            cogname = 'search'
+            query = interaction.data['components'][0]['components'][0]['value']
+            namematch = True
+            descmatch = True
+            match = 0
+
+@bot.command(description='Shows bot uptime.')
 async def uptime(ctx):
-    embed = discord.Embed(
-        title=f'{bot.user.global_name} uptime',
+    embed = nextcord.Embed(
+        title=f'{bot.user.global_name or bot.user.name} uptime',
         description=f'The bot has been up since <t:{ut_total}:f>.'
     )
     t = round(time.time()) - ut_total
     td = datetime.timedelta(seconds=t)
     d = td.days
     h, m, s = str(td).split(',')[len(str(td).split(','))-1].split(':')
-    tup = t
     embed.add_field(
         name='Total uptime',
         value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
         inline=False
     )
-    t = ut_connected + round(time.time()) - ut_conntime
-    td = datetime.timedelta(seconds=t)
-    d = td.days
-    h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
     embed.add_field(
-        name='Connected uptime',
-        value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
-        inline=False
-    )
-    embed.add_field(
-        name='Connected uptime %',
-        value=f'{round((t/tup)*100,2)}%',
+        name='Disconnects/hr',
+        value=f'{round(disconnects / (t / 3600), 2)}',
         inline=False
     )
     await ctx.send(embed=embed)
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Adds a moderator to the instance.')
 async def addmod(ctx,*,userid):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can manage moderators!')
@@ -379,7 +581,7 @@ async def addmod(ctx,*,userid):
         mod = f'@{user.name}'
     await ctx.send(f'**{mod}** is now a moderator!')
 
-@bot.command(hidden=True,aliases=['remmod','delmod'])
+@bot.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
 async def removemod(ctx,*,userid):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can manage moderators!')
@@ -419,18 +621,20 @@ async def make(ctx,*,room):
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description="Adds a given rule to a given room.")
 async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
     room = room.lower()
     if not room in list(db['rules'].keys()):
         return await ctx.send('This room does not exist!')
+    if len(db['rules'][room]) >= 25:
+        return await ctx.send('You can only have up to 25 rules in a room!')
     db['rules'][room].append(rule)
     db.save_data()
     await ctx.send('Added rule!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description="Removes a given rule from a given room.")
 async def delrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
@@ -448,7 +652,7 @@ async def delrule(ctx,room,*,rule):
     await ctx.send('Removed rule!')
 
 
-@bot.command()
+@bot.command(description='Displays room rules for the specified room.')
 async def rules(ctx, *, room=''):
     """Displays room rules for the specified room."""
     if is_room_restricted(room, db) and not is_user_admin(ctx.author.id):
@@ -474,11 +678,14 @@ async def rules(ctx, *, room=''):
         else:
             text = f'{text}\n{index}. {rule}'
         index += 1
-    embed = discord.Embed(title='Room rules', description=text)
+    embed = nextcord.Embed(title='Room rules', description=text)
     embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
     await ctx.send(embed=embed)
 
-@bot.command(hidden=True)
+@bot.command(
+    hidden=True,
+    description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
+)
 async def roomrestrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
@@ -493,7 +700,10 @@ async def roomrestrict(ctx,*,room):
         await ctx.send(f'Restricted `{room}`!')
     db.save_data()
 
-@bot.command(hidden=True)
+@bot.command(
+    hidden=True,
+    description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
+)
 async def roomlock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
@@ -508,42 +718,422 @@ async def roomlock(ctx,*,room):
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
 
-@bot.command()
-async def rooms(ctx):
-    embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{bot.command_prefix}bind <room>` to bind to a room.')
-    if len(db['rooms'])==0:
-        embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
-        return await ctx.send(embed=embed)
-    count = 0
-    for room in db['rooms']:
-        if is_room_restricted(room,db):
-            if not is_user_admin(ctx.author.id):
-                continue
-            emoji = ':wrench:'
-            desc = 'Only admins can bind to this room.'
-        elif is_room_locked(room,db):
-            emoji = ':lock:'
-            desc = 'This room is locked to moderators and admins only.'
-        else:
-            emoji = ':globe_with_meridians:'
-            desc = 'This room is available to anyone!'
-        online = 0
-        members = 0
-        guilds = 0
-        for guild_id in db['rooms'][room]:
-            try:
-                guild = bot.get_guild(int(guild_id))
-                online += len(list(filter(lambda x: (x.status!=discord.Status.offline and x.status!=discord.Status.invisible), guild.members)))
-                members += len(guild.members)
-                guilds += 1
-            except:
-                pass
-        embed.add_field(name=f'{emoji} `{room}` - {guilds} servers (:green_circle: {online} online, :busts_in_silhouette: {members} members)',value=desc,inline=False)
-        count += 1
-    embed.title = f'UniChat rooms (Total: `{count}`)'
-    await ctx.send(embed=embed)
+@bot.command(description='Measures bot latency.')
+async def ping(ctx):
+    t = time.time()
+    msg = await ctx.send('Ping!')
+    diff = round((time.time() - t) * 1000, 1)
+    text = 'Pong! :ping_pong:'
+    if diff <= 300 and bot.latency <= 0.2:
+        embed = nextcord.Embed(title='Normal - all is well!',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+                               color=0x00ff00)
+    elif diff <= 600 and bot.latency <= 0.5:
+        embed = nextcord.Embed(title='Fair - could be better.',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+                               color=0xffff00)
+    elif diff <= 2000 and bot.latency <= 1.0:
+        embed = nextcord.Embed(title='SLOW - __**oh no.**__',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+                               color=0xff0000)
+    else:
+        text = 'what'
+        embed = nextcord.Embed(title='**WAY TOO SLOW**',
+                               description=f'Roundtrip: {diff}ms\nHeartbeat: {round(bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+                               color=0xbb00ff)
+    await msg.edit(content=text, embed=embed)
 
-@bot.command(aliases=['guilds'])
+@bot.command(description='Shows a list of rooms.')
+async def rooms(ctx):
+    show_restricted = False
+    show_locked = False
+
+    if ctx.author.id in config['admin_ids']:
+        show_restricted = True
+        show_locked = True
+    elif ctx.author.id in db['moderators']:
+        show_locked = True
+
+    panel = 0
+    limit = 8
+    page = 0
+    match = 0
+    namematch = False
+    descmatch = False
+    was_searching = False
+    roomname = ''
+    query = ''
+    msg = None
+    interaction = None
+
+    while True:
+        embed = nextcord.Embed(color=0xed4545)
+        maxpage = 0
+        components = ui.MessageComponents()
+
+        if panel == 0:
+            was_searching = False
+            roomlist = list(db['rooms'].keys())
+            offset = 0
+            for x in range(len(roomlist)):
+                if (not show_restricted and is_room_restricted(roomlist[x-offset],db) or
+                        not show_locked and is_room_locked(roomlist[x-offset],db)):
+                    roomlist.pop(x-offset)
+                    offset += 1
+
+            maxpage = math.ceil(len(roomlist) / limit) - 1
+            if interaction:
+                if page > maxpage:
+                    page = maxpage
+            embed.title = f'{bot.user.global_name or bot.user.name} rooms'
+            embed.description = 'Choose a room to view its info!'
+            selection = nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
+            )
+
+            for x in range(limit):
+                index = (page * limit) + x
+                if index >= len(roomlist):
+                    break
+                name = roomlist[index]
+                emoji = (
+                    '\U0001F527' if is_room_restricted(roomlist[index],db) else
+                    '\U0001F512' if is_room_locked(roomlist[index],db) else
+                    '\U0001F310'
+                )
+                description = (
+                    'Restricted room' if is_room_restricted(roomlist[index],db) else
+                    'Locked room' if is_room_locked(roomlist[index],db) else
+                    'Public room'
+                )
+
+                embed.add_field(
+                    name=f'{emoji} `{name}`',
+                    value=description,
+                    inline=False
+                )
+                selection.add_option(
+                    label=name,
+                    emoji=emoji,
+                    description=description,
+                    value=name
+                )
+
+            if len(embed.fields) == 0:
+                embed.add_field(
+                    name='No rooms',
+                    value='There\'s no rooms here!',
+                    inline=False
+                )
+                selection.add_option(
+                    label='placeholder',
+                    value='placeholder'
+                )
+                selection.disabled = True
+
+            components.add_rows(
+                ui.ActionRow(
+                    selection
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Previous',
+                        custom_id='prev',
+                        disabled=page <= 0 or selection.disabled
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Next',
+                        custom_id='next',
+                        disabled=page >= maxpage or selection.disabled
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green,
+                        label='Search',
+                        custom_id='search',
+                        emoji='\U0001F50D',
+                        disabled=selection.disabled
+                    )
+                )
+            )
+        elif panel == 1:
+            was_searching = True
+            roomlist = list(db['rooms'].keys())
+
+            def search_filter(query, query_cmd):
+                return query.lower() in query_cmd.lower()
+
+            offset = 0
+            for x in range(len(roomlist)):
+                room = roomlist[x - offset]
+                if (
+                        not show_restricted and is_room_restricted(roomlist[x - offset], db) or
+                        not show_locked and is_room_locked(roomlist[x - offset], db)
+                ) and not show_restricted or not search_filter(query,room):
+                    roomlist.pop(x - offset)
+                    offset += 1
+
+            embed.title = f'{bot.user.global_name or bot.user.name} rooms / search'
+            embed.description = 'Choose a room to view its info!'
+
+            if len(roomlist) == 0:
+                maxpage = 0
+                embed.add_field(
+                    name='No rooms',
+                    value='There are no rooms matching your search query.',
+                    inline=False
+                )
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                )
+                selection.add_option(
+                    label='No rooms'
+                )
+            else:
+                maxpage = math.ceil(len(roomlist) / limit) - 1
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
+                )
+
+                roomlist = await bot.loop.run_in_executor(None, lambda: sorted(
+                    roomlist,
+                    key=lambda x: x.lower()
+                ))
+
+                for x in range(limit):
+                    index = (page * limit) + x
+                    if index >= len(roomlist):
+                        break
+                    room = roomlist[index]
+                    emoji = (
+                        '\U0001F527' if is_room_restricted(roomlist[index], db) else
+                        '\U0001F512' if is_room_locked(roomlist[index], db) else
+                        '\U0001F310'
+                    )
+                    roomdesc = (
+                        'Restricted room' if is_room_restricted(roomlist[index], db) else
+                        'Locked room' if is_room_locked(roomlist[index], db) else
+                        'Public room'
+                    )
+                    embed.add_field(
+                        name=f'{emoji} `{room}`',
+                        value=roomdesc,
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=room,
+                        description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
+                        value=room,
+                        emoji=emoji
+                    )
+
+            embed.description = f'Searching: {query} (**{len(roomlist)}** results)'
+            maxcount = (page + 1) * limit
+            if maxcount > len(roomlist):
+                maxcount = len(roomlist)
+            embed.set_footer(
+                text=(
+                    f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(roomlist)}'+
+                    ' results'
+                )
+            )
+
+            components.add_row(
+                ui.ActionRow(
+                    selection
+                )
+            )
+
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Previous',
+                        custom_id='prev',
+                        disabled=page <= 0
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Next',
+                        custom_id='next',
+                        disabled=page >= maxpage
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green,
+                        label='Search',
+                        custom_id='search',
+                        emoji='\U0001F50D'
+                    )
+                )
+            )
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        custom_id='match',
+                        label=(
+                            'Matches any of' if match == 0 else
+                            'Matches both'
+                        ),
+                        style=(
+                            nextcord.ButtonStyle.green if match == 0 else
+                            nextcord.ButtonStyle.blurple
+                        ),
+                        emoji=(
+                            '\U00002194' if match == 0 else
+                            '\U000023FA'
+                        )
+                    ),
+                    nextcord.ui.Button(
+                        custom_id='name',
+                        label='Room name',
+                        style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
+                    ),
+                    nextcord.ui.Button(
+                        custom_id='desc',
+                        label='Room description',
+                        style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
+                    )
+                )
+            )
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Back',
+                        custom_id='back',
+                    )
+                )
+            )
+        elif panel == 2:
+            embed.title = (
+                f'{bot.user.global_name or bot.user.name} rooms / search / {roomname}'
+                if was_searching else
+                f'{bot.user.global_name or bot.user.name} rooms / {roomname}'
+            )
+            description = (
+                db['descriptions'][roomname]
+                if roomname in db['descriptions'].keys() else 'This room has no description.'
+            )
+            emoji = (
+                '\U0001F527' if is_room_restricted(roomname, db) else
+                '\U0001F512' if is_room_locked(roomname, db) else
+                '\U0001F310'
+            )
+            embed.description = f'# **{emoji} `{roomname}`**\n{description}'
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='View room rules',
+                        custom_id='rules',
+                    )
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Back',
+                        custom_id='back',
+                    )
+                )
+            )
+        elif panel==3:
+            embed.title = (
+                f'{bot.user.global_name or bot.user.name} rooms / search / {roomname} / rules'
+                if was_searching else
+                f'{bot.user.global_name or bot.user.name} rooms / {roomname} / rules'
+            )
+            index = 0
+            text = ''
+            if roomname in list(db['rules'].keys()):
+                rules = db['rules'][roomname]
+            else:
+                rules = []
+            for rule in rules:
+                if text == '':
+                    text = f'1. {rule}'
+                else:
+                    text = f'{text}\n{index}. {rule}'
+                index += 1
+            if len(rules)==0:
+                text = (
+                    'The room admins haven\'t added rules for this room yet.\n'+
+                    'Though, do remember to use common sense and refrain from doing things that you shouldn\'t do.'
+                )
+            embed.description=text
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Back',
+                        custom_id='back',
+                    )
+                )
+            )
+
+        if panel == 0:
+            embed.set_footer(text=f'Page {page + 1} of {maxpage + 1}')
+        if not msg:
+            msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
+        else:
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(embed=embed, view=components)
+        embed.clear_fields()
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            await msg.edit(view=None)
+            break
+        if interaction.type == nextcord.InteractionType.component:
+            if interaction.data['custom_id'] == 'selection':
+                roomname = interaction.data['values'][0]
+                panel = 2
+                page = 0
+            elif interaction.data['custom_id'] == 'back':
+                panel -= 1
+                if panel < 0 or panel==1 and not was_searching:
+                    panel = 0
+                page = 0
+            elif interaction.data['custom_id'] == 'rules':
+                panel += 1
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+            elif interaction.data['custom_id'] == 'search':
+                modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                modal.add_item(
+                    nextcord.ui.TextInput(
+                        label='Search query',
+                        style=nextcord.TextInputStyle.short,
+                        placeholder='Type something...'
+                    )
+                )
+                await interaction.response.send_modal(modal)
+            elif interaction.data['custom_id'] == 'match':
+                match += 1
+                if match > 1:
+                    match = 0
+            elif interaction.data['custom_id'] == 'name':
+                namematch = not namematch
+                if not namematch and not descmatch:
+                    namematch = True
+            elif interaction.data['custom_id'] == 'desc':
+                descmatch = not descmatch
+                if not namematch and not descmatch:
+                    descmatch = True
+        elif interaction.type == nextcord.InteractionType.modal_submit:
+            panel = 1
+            query = interaction.data['components'][0]['components'][0]['value']
+            namematch = True
+            descmatch = True
+            match = 0
+
+@bot.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
 async def servers(ctx,*,room='main'):
     try:
         data = db['rooms'][room]
@@ -559,10 +1149,10 @@ async def servers(ctx,*,room='main'):
             text = f'- {name} (`{guild_id}`)'
         else:
             text = f'{text}\n- {name} (`{guild_id}`)'
-    embed = discord.Embed(title=f'Servers connected to `{room}`',description=text)
+    embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
     await ctx.send(embed=embed)
 
-@bot.command(aliases=['link', 'connect', 'federate', 'bridge'])
+@bot.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
 async def bind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
@@ -576,7 +1166,7 @@ async def bind(ctx, *, room=''):
         data = db['rooms'][room]
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of rooms.')
-    embed = discord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
+    embed = nextcord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
     msg = await ctx.send(embed=embed)
     for roomname in list(db['rooms'].keys()):
         # Prevent duplicate binding
@@ -610,38 +1200,44 @@ async def bind(ctx, *, room=''):
                     text = f'{text}\n{index}. {rule}'
                 index += 1
         text = f'{text}\n\nPlease display these rules somewhere accessible.'
-        embed = discord.Embed(title='Please agree to the room rules first:', description=text)
+        embed = nextcord.Embed(title='Please agree to the room rules first:', description=text)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-        ButtonStyle = discord.ButtonStyle
         row = [
-            discord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False)
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.green, label='Accept and bind', custom_id=f'accept', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='No thanks', custom_id=f'reject', disabled=False
+            )
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = ui.ActionRow(row[0], row[1])
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await msg.edit(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and (
-                    interaction.custom_id == 'accept' or
-                    interaction.custom_id == 'reject'
+                    interaction.data['custom_id'] == 'accept' or
+                    interaction.data['custom_id'] == 'reject'
             ) and interaction.channel.id == ctx.channel.id
 
         try:
-            resp = await bot.wait_for("component_interaction", check=check, timeout=60.0)
+            resp = await bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(components=components)
+            btns = ui.ActionRow(row[0], row[1])
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(view=components)
             return await ctx.send('Timed out.')
         row[0].disabled = True
         row[1].disabled = True
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await resp.response.edit_message(components=components)
-        if resp.custom_id == 'reject':
+        btns = ui.ActionRow(row[0], row[1])
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await resp.response.edit_message(view=components)
+        if resp.data['custom_id'] == 'reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         data = db['rooms'][room]
@@ -659,7 +1255,7 @@ async def bind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['unlink', 'disconnect'])
+@bot.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
 async def unbind(ctx, *, room=''):
     if room == '':
         return await ctx.send('You must specify the room to unbind from.')
@@ -692,7 +1288,7 @@ async def unbind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['ban'])
+@bot.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
 async def restrict(ctx, *, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
@@ -719,7 +1315,7 @@ async def restrict(ctx, *, target):
     db.save_data()
     await ctx.send('User/server can no longer forward messages to this channel!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
 async def globalban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
@@ -754,8 +1350,8 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
         mod = f'@{ctx.author.name}'
     else:
         mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-    embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
-                          timestamp=datetime.datetime.utcnow())
+    embed = nextcord.Embed(title=f'You\'ve been __global restricted__ by {mod}!', description=reason, color=0xffcc00,
+                           timestamp=datetime.datetime.now(datetime.UTC))
     try:
         embed.set_author(name=mod, icon_url=ctx.author.avatar)
     except:
@@ -780,7 +1376,7 @@ async def globalban(ctx, target, duration, *, reason='no reason given'):
 
     await ctx.send('User was global banned!')
 
-@bot.command(aliases=['unban'])
+@bot.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
 async def unrestrict(ctx, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
@@ -798,7 +1394,7 @@ async def unrestrict(ctx, target):
     db.save_data()
     await ctx.send('User/server can now forward messages to this channel!')
 
-@bot.command(hidden=True)
+@bot.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
 async def globalunban(ctx, *, target):
     if not ctx.author.id in db['moderators']:
         return
@@ -813,7 +1409,7 @@ async def globalunban(ctx, *, target):
     db.save_data()
     await ctx.send('unbanned, nice')
 
-@bot.command(aliases=['find'])
+@bot.command(aliases=['find'],description='Identifies the origin of a message.')
 async def identify(ctx):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members) and not ctx.author.id in db['moderators']:
@@ -843,7 +1439,7 @@ async def identify(ctx):
 
     await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id})')
 
-@bot.command()
+@bot.command(description='Deletes a message.')
 async def delete(ctx, *, msg_id=None):
     """Deletes all bridged messages. Does not delete the original."""
     gbans = db['banned']
@@ -905,9 +1501,9 @@ async def delete(ctx, *, msg_id=None):
             logger.exception('Something went wrong!')
             await ctx.send('Something went wrong.')
 
-@bot.command()
+@bot.command(description='Shows bot info.')
 async def about(ctx):
-    embed = discord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
+    embed = nextcord.Embed(title=bot.user.name, description="Powered by Unifier Micro")
     embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
     embed.add_field(name="View source code", value=config['repo'], inline=False)
     embed.set_footer(text=f"Version {version}")
@@ -925,7 +1521,10 @@ async def on_message(message):
     if message.content.startswith(bot.command_prefix) and not message.author.bot:
         return await bot.process_commands(message)
 
-    hooks = await message.channel.webhooks()
+    try:
+        hooks = await message.channel.webhooks()
+    except:
+        return
 
     roomname = None
     for room in list(db['rooms'].keys()):
@@ -942,7 +1541,7 @@ async def on_message(message):
     if not roomname:
         return
 
-    if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+    if ('nextcord.gg/' in message.content or 'nextcord.com/invite/' in message.content or
             'discordapp.com/invite/' in message.content):
         try:
             await message.delete()
@@ -1022,26 +1621,27 @@ async def on_message(message):
             except:
                 files.append(await attachment.to_file(use_cached=True, spoiler=False))
 
-        webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
         components = None
 
         if reply_msg:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.gray,
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
                         label=f'Replying to [unknown]',
                         disabled=True
                     )
                 ),
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.blurple,
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
                         label=f'x{len(message.attachments)}',
                         emoji='\U0001F3DE',
                         disabled=True
-                    ) if donotshow else discord.ui.Button(
-                        style=discord.ButtonStyle.blurple,
+                    ) if donotshow else nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
                         label=trimmed,
                         disabled=True
                     )
@@ -1050,29 +1650,30 @@ async def on_message(message):
 
             ch = guild.get_channel(webhook.channel_id)
             if ch:
-                url = f'https://discord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
+                url = f'https://nextcord.com/channels/{guild.id}/{ch.id}/{reply_msg.id}'
                 try:
                     reply_author = await bot.fetch_user(int(reply_msg.author_id))
-                    reply_name = '@'+reply_author.global_name
+                    reply_name = '@'+reply_author.global_name or reply_author.name
                 except:
                     reply_name = '[unknown]'
 
-                components = discord.ui.MessageComponents(
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.url,
+                components = ui.MessageComponents()
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.url,
                             label=f'Replying to {reply_name}',
                             url=url
                         )
                     ),
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
                             label=f'x{len(message.attachments)}',
                             emoji='\U0001F3DE',
                             disabled=True
-                        ) if donotshow else discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
+                        ) if donotshow else nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
                             label=trimmed,
                             disabled=True
                         )
@@ -1086,9 +1687,9 @@ async def on_message(message):
 
         sent = await webhook.send(
             avatar_url=url,
-            username=message.author.global_name,
+            username=message.author.global_name or message.author.name,
             files=files,
-            components=components,
+            view=components,
             content=message.content,
             wait=True
         )
