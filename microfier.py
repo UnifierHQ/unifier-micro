@@ -581,7 +581,7 @@ async def addmod(ctx,*,userid):
         mod = f'@{user.name}'
     await ctx.send(f'**{mod}** is now a moderator!')
 
-@bot.command(hidden=True,aliases=['remmod','delmod'])
+@bot.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
 async def removemod(ctx,*,userid):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can manage moderators!')
@@ -682,7 +682,10 @@ async def rules(ctx, *, room=''):
     embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
     await ctx.send(embed=embed)
 
-@bot.command(hidden=True)
+@bot.command(
+    hidden=True,
+    description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
+)
 async def roomrestrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
