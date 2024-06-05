@@ -1689,7 +1689,7 @@ async def on_message(message):
             avatar_url=url,
             username=message.author.global_name or message.author.name,
             files=files,
-            view=components,
+            view=components if components else ui.MessageComponents(),
             content=message.content,
             wait=True
         )
