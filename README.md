@@ -1,7 +1,7 @@
 <h1 align=center>
   <img width=64 src=https://github.com/UnifierHQ/unifier-micro/assets/41323182/16f7ca32-bc5a-47d2-89ae-50ebef8ef70d>
   
-  Unifier Micro (microfier)</h1>
+  Unifier Micro</h1>
 
 <p align=center>A much lighter version of <a href="https://github.com/UnifierHQ/unifier">Unifier</a></p>
 
