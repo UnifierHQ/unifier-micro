@@ -22,7 +22,7 @@ speed, as well as limits the bot to support Discord only.
 
 ## Who should use this?
 Unifier Micro is built for small communities just wanting to give Unifier a spin, or communities with very limited 
-resources to run Unifier. For communities of scale with decent resources, we recommend using the [full-scale 
+resources to run Unifier. For larger communities than have decent resources, we recommend using the [full-scale 
 version](https://github.com/UnifierHQ/unifier) instead.
 
 ## Features
