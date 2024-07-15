@@ -1,5 +1,5 @@
 <h1 align=center>
-  <img width=64 src=https://github.com/UnifierHQ/unifier-micro/assets/41323182/16f7ca32-bc5a-47d2-89ae-50ebef8ef70d>
+  <img width=64 src=https://github.com/user-attachments/assets/9acfd845-e9f2-4f64-84dc-bea342a4b78e>
   
   Unifier Micro</h1>
 
