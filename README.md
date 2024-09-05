@@ -3,7 +3,7 @@
   
   Unifier Micro</h1>
 
-<p align=center>A much lighter version of <a href="https://github.com/UnifierHQ/unifier">Unifier</a></p>
+<p align=center>A simpler and much lighter version of <a href="https://github.com/UnifierHQ/unifier">Unifier</a></p>
 
 > [!NOTE]
 > Unifier Micro is **not** the same as Unifier. If you're looking for the full scale version, go
