@@ -1,0 +1,8 @@
+{
+  "maintainer": "UnifierHQ",
+  "product": "unifier-micro",
+  "product_name": "Unifier Micro",
+  "base_bootfile": "microfier.py",
+  "repo": "https://github.com/UnifierHQ/unifier-micro",
+  "required_py_version": 9
+}

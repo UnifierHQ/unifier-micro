@@ -124,7 +124,7 @@ def is_user_admin(id):
 
 def is_room_restricted(room,db):
     try:
-        if room in db['restricted']:
+        if db['rooms'][room]['meta']['restricted']:
             return True
         else:
             return False
@@ -133,7 +133,7 @@ def is_room_restricted(room,db):
 
 def is_room_locked(room,db):
     try:
-        if room in db['locked']:
+        if db['rooms'][room]['meta']['locked']:
             return True
         else:
             return False
@@ -146,6 +146,39 @@ async def fetch_message(message_id):
             return message
     raise ValueError("No message found")
 
+async def convert_1():
+    """Converts data structure to be v3.0.0-compatible.
+    Eliminates the need for a lot of unneeded keys."""
+    if not 'rules' in db.keys():
+        # conversion is not needed
+        return
+    for room in db['rooms']:
+        db['rooms'][room] = {'meta':{
+            'rules': db['rules'][room],
+            'restricted': room in db['restricted'],
+            'locked': room in db['locked'],
+            'private': False,
+            'private_meta': {
+                'server': None,
+                'allowed': [],
+                'invites': [],
+                'platform': 'discord'
+            },
+            'emoji': None,
+            'description': None,
+            'display_name': None,
+            'banned': []
+        },'discord': db['rooms'][room]}
+
+    db.pop('rules')
+    db.pop('restricted')
+    db.pop('locked')
+
+    # not sure what to do about the data stored in rooms_revolt key now...
+    # maybe delete the key entirely? or keep it in case conversion went wrong?
+
+    db.save_data()
+
 
 with open('config.json', 'r') as file:
     config = json.load(file)
@@ -157,6 +190,17 @@ package = config['package']
 admin_ids = config['admin_ids']
 
 logger = log.buildlogger(package,'core',level)
+
+room_template = {
+    'rules': [], 'restricted': False, 'locked': False, 'private': False,
+    'private_meta': {
+        'server': None,
+        'allowed': [],
+        'invites': [],
+        'platform': 'discord'
+    },
+    'emoji': None, 'description': None, 'display_name': None, 'banned': []
+}
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -616,8 +660,7 @@ async def make(ctx,*,room):
         return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
-    db['rooms'].update({room:{}})
-    db['rules'].update({room:[]})
+    db['rooms'].update({room:dict(room_template)})
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
 
@@ -626,11 +669,11 @@ async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
     room = room.lower()
-    if not room in list(db['rules'].keys()):
+    if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if len(db['rules'][room]) >= 25:
+    if len(db['rooms'][room]['meta']['rules']) >= 25:
         return await ctx.send('You can only have up to 25 rules in a room!')
-    db['rules'][room].append(rule)
+    db['rules'][room]['rules'].append(rule)
     db.save_data()
     await ctx.send('Added rule!')
 
@@ -645,9 +688,9 @@ async def delrule(ctx,room,*,rule):
             raise ValueError()
     except:
         return await ctx.send('Rule must be a number higher than 0.')
-    if not room in list(db['rules'].keys()):
+    if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    db['rules'][room].pop(rule-1)
+    db['rooms'][room]['meta']['rules'].pop(rule-1)
     db.save_data()
     await ctx.send('Removed rule!')
 
@@ -666,11 +709,8 @@ async def rules(ctx, *, room=''):
 
     index = 0
     text = ''
-    if room in list(db['rules'].keys()):
-        rules = db['rules'][room]
-        if len(rules) == 0:
-            return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
-    else:
+    rules = db['rooms'][room]['meta']['rules']
+    if len(rules) == 0:
         return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
     for rule in rules:
         if text == '':
@@ -686,17 +726,17 @@ async def rules(ctx, *, room=''):
     hidden=True,
     description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
 )
-async def roomrestrict(ctx,*,room):
+async def restrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
     room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if room in db['restricted']:
-        db['restricted'].remove(room)
+    if db['rooms'][room]['meta']['restricted']:
+        db['rooms'][room]['meta']['restricted'] = False
         await ctx.send(f'Unrestricted `{room}`!')
     else:
-        db['restricted'].append(room)
+        db['rooms'][room]['meta']['restricted'] = True
         await ctx.send(f'Restricted `{room}`!')
     db.save_data()
 
@@ -704,19 +744,39 @@ async def roomrestrict(ctx,*,room):
     hidden=True,
     description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
 )
-async def roomlock(ctx,*,room):
+async def lock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
     room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if room in db['locked']:
-        db['locked'].remove(room)
+    if db['rooms'][room]['meta']['locked']:
+        db['rooms'][room]['meta']['locked'] = False
         await ctx.send(f'Unlocked `{room}`!')
     else:
-        db['locked'].append(room)
+        db['rooms'][room]['meta']['locked'] = True
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
+
+@bot.command(name='display-name', hidden=True, description='Sets room display name.')
+async def display_name(ctx, room, *, name=''):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
+    if not room in list(db['rooms'].keys()):
+        return await ctx.send('This room does not exist!')
+
+    if len(name) == 0:
+        if not db['rooms'][room]['meta']['display_name']:
+            return await ctx.send('There is no display name to reset for this room.')
+        db['rooms'][room]['meta']['display_name'] = None
+        db.save_data()
+        return await ctx.send('Display name removed.')
+    elif len(name) > 32:
+        return await ctx.send('Display name is too long. Please keep it within 32 characters.')
+    db['rooms'][room]['meta']['display_name'] = name
+    db.save_data()
+    await ctx.send(f'Updated display name to `{name}`!')
 
 @bot.command(description='Measures bot latency.')
 async def ping(ctx):
@@ -796,6 +856,9 @@ async def rooms(ctx):
                 if index >= len(roomlist):
                     break
                 name = roomlist[index]
+                display_name = (
+                    db['rooms'][name]['meta']['display_name'] or name
+                )
                 emoji = (
                     '\U0001F527' if is_room_restricted(roomlist[index],db) else
                     '\U0001F512' if is_room_locked(roomlist[index],db) else
@@ -808,12 +871,15 @@ async def rooms(ctx):
                 )
 
                 embed.add_field(
-                    name=f'{emoji} `{name}`',
+                    name=f'{emoji} '+(
+                        f'{display_name} (`{name}`)' if db['rooms'][name]['meta']['display_name'] else
+                        f'`{display_name}`'
+                    ),
                     value=description,
                     inline=False
                 )
                 selection.add_option(
-                    label=name,
+                    label=display_name,
                     emoji=emoji,
                     description=description,
                     value=name
@@ -906,6 +972,9 @@ async def rooms(ctx):
                     if index >= len(roomlist):
                         break
                     room = roomlist[index]
+                    display_name = (
+                        db['rooms'][room]['meta']['display_name'] or room
+                    )
                     emoji = (
                         '\U0001F527' if is_room_restricted(roomlist[index], db) else
                         '\U0001F512' if is_room_locked(roomlist[index], db) else
@@ -917,12 +986,15 @@ async def rooms(ctx):
                         'Public room'
                     )
                     embed.add_field(
-                        name=f'{emoji} `{room}`',
+                        name=f'{emoji} '+(
+                            f'{display_name} (`{room}`)' if db['rooms'][room]['meta']['display_name'] else
+                            f'`{display_name}`'
+                        ),
                         value=roomdesc,
                         inline=False
                     )
                     selection.add_option(
-                        label=room,
+                        label=display_name,
                         description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
                         value=room,
                         emoji=emoji
@@ -1011,6 +1083,9 @@ async def rooms(ctx):
                 if was_searching else
                 f'{bot.user.global_name or bot.user.name} rooms / {roomname}'
             )
+            display_name = (
+                db['rooms'][roomname]['meta']['display_name'] or roomname
+            )
             description = (
                 db['descriptions'][roomname]
                 if roomname in db['descriptions'].keys() else 'This room has no description.'
@@ -1020,7 +1095,10 @@ async def rooms(ctx):
                 '\U0001F512' if is_room_locked(roomname, db) else
                 '\U0001F310'
             )
-            embed.description = f'# **{emoji} `{roomname}`**\n{description}'
+            if db['rooms'][roomname]['meta']['display_name']:
+                embed.description = f'# **{emoji} {display_name}**\n`{roomname}`\n\n{description}'
+            else:
+                embed.description = f'# **{emoji} `{display_name}`**\n{description}'
             components.add_rows(
                 ui.ActionRow(
                     nextcord.ui.Button(
@@ -1045,10 +1123,7 @@ async def rooms(ctx):
             )
             index = 0
             text = ''
-            if roomname in list(db['rules'].keys()):
-                rules = db['rules'][roomname]
-            else:
-                rules = []
+            rules = db['rooms'][roomname]['rules']
             for rule in rules:
                 if text == '':
                     text = f'1. {rule}'
@@ -1190,10 +1265,10 @@ async def bind(ctx, *, room=''):
                 f'Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{bot.command_prefix}unlink` it then `{bot.command_prefix}link` it back.')
         index = 0
         text = ''
-        if len(db['rules'][room]) == 0:
+        if len(db['rooms'][room]['meta']['rules']) == 0:
             text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `{bot.command_prefix}rules {room}`.'
         else:
-            for rule in db['rules'][room]:
+            for rule in db['rooms'][room]['meta']['rules']:
                 if text == '':
                     text = f'1. {rule}'
                 else:
@@ -1288,8 +1363,8 @@ async def unbind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
-async def restrict(ctx, *, target):
+@bot.command(description='Blocks a user or server from bridging messages to your server.')
+async def block(ctx, *, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
         return await ctx.send('You cannot restrict members/servers.')
@@ -1315,8 +1390,8 @@ async def restrict(ctx, *, target):
     db.save_data()
     await ctx.send('User/server can no longer forward messages to this channel!')
 
-@bot.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
-async def globalban(ctx, target, duration, *, reason='no reason given'):
+@bot.command(aliases=['globalban'],hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
+async def ban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
     forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
