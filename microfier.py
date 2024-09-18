@@ -341,6 +341,8 @@ async def on_ready():
         logger.debug(f'Pinging servers every {round(config["ping"])} seconds')
     elif config['ping'] <= 0:
         logger.debug(f'Periodic pinging disabled')
+    logger.debug('Restructuring room data...')
+    await convert_1()
     logger.info('Unifier is ready!')
 
 @bot.event
