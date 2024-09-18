@@ -32,7 +32,7 @@ import tomli
 import tomli_w
 import traceback
 
-version = '2.0.1'
+version = '3.0.0'
 
 def timetoint(t,timeoutcap=False):
     try:
