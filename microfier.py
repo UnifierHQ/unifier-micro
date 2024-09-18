@@ -227,10 +227,24 @@ except:
                     new[key].update({newkey: old[newkey]})
         return new
 
-    data = update_toml(config, newdata)
+    config = update_toml(config, newdata)
 
     with open(config_file, 'wb+') as file:
-        tomli_w.dump(data, file)
+        tomli_w.dump(config, file)
+
+try:
+    with open('boot_config.json', 'r') as file:
+        boot_data = json.load(file)
+except:
+    boot_data = {}
+
+newdata = {}
+
+for key in config:
+    for newkey in config[key]:
+        newdata.update({newkey: config[key][newkey]})
+
+data = newdata
 
 env_loaded = load_dotenv()
 
@@ -262,6 +276,10 @@ if not 'repo' in list(config.keys()):
     logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
     logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
     sys.exit(1)
+
+if not valid_toml:
+    logger.warning('From v3.0.0, Unifier will use config.toml rather than config.json.')
+    logger.warning('To change your Unifier configuration, please use the new file.')
 
 if not env_loaded or not "TOKEN" in os.environ:
     logger.critical('Could not find token from .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
