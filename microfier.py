@@ -28,6 +28,9 @@ import os
 import re
 from utils import log, ui
 import math
+import tomli
+import tomli_w
+import traceback
 
 version = '2.0.1'
 
@@ -112,10 +115,10 @@ class AutoSaveDict(dict):
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
 
-def is_user_admin(id):
+def is_user_admin(user_id):
     try:
         global admin_ids
-        if id in admin_ids:
+        if user_id in admin_ids:
             return True
         else:
             return False
@@ -180,8 +183,54 @@ async def convert_1():
     db.save_data()
 
 
-with open('config.json', 'r') as file:
-    config = json.load(file)
+try:
+    with open('.install.json') as file:
+        install_info = json.load(file)
+
+    if not install_info['product'] == 'unifier-micro':
+        print('This installation is not compatible with Unifier Micro.')
+        sys.exit(1)
+except:
+    if sys.platform == 'win32':
+        print('To start the bot, please run "run.bat" instead.')
+    else:
+        print('To start the bot, please run "./run.sh" instead.')
+        print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
+    sys.exit(1)
+
+config_file = 'config.toml'
+if 'devmode' in sys.argv:
+    config_file = 'devconfig.toml'
+
+valid_toml = False
+try:
+    with open(config_file, 'rb') as file:
+        config = tomli.load(file)
+    valid_toml = True
+except:
+    try:
+        with open('config.json') as file:
+            config = json.load(file)
+    except:
+        traceback.print_exc()
+        print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+        sys.exit(1)
+
+    # toml is likely in update files, pull from there
+    with open('update/config.toml', 'rb') as file:
+        newdata = tomli.load(file)
+
+    def update_toml(old, new):
+        for key in new:
+            for newkey in new[key]:
+                if newkey in old.keys():
+                    new[key].update({newkey: old[newkey]})
+        return new
+
+    data = update_toml(config, newdata)
+
+    with open(config_file, 'wb+') as file:
+        tomli_w.dump(data, file)
 
 env_loaded = load_dotenv()
 
