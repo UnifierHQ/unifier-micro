@@ -116,8 +116,8 @@ if not '.install.json' in os.listdir() or reinstall:
             print('\x1b[31;1mInstaller has crashed or has been aborted.\x1b[0m')
             sys.exit(exit_code)
 
-        # sleep to prevent 429s
-        time.sleep(5)
+        print('\x1b[33;1mPlease re-run the run script after configuring the bot to start the bot.\x1b[0m')
+        sys.exit(0)
 
 if not boot_file in os.listdir():
     if os.path.isdir('update'):
