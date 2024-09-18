@@ -1,0 +1,14 @@
+[system]
+debug = false
+package = "microfier"
+
+[roles]
+owner = -1
+admin_ids = []
+
+[bot]
+prefix = "u!"
+ping = 0
+
+[plugin]
+"repo" = "https://github.com/greeeen-dev/unifier-micro"
