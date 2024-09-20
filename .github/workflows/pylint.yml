@@ -4,6 +4,7 @@ on: [push]
 
 jobs:
   build-linux:
+    name: "Linux (Standard)"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,11 +20,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pylint
-    - name: Analysing the code with pylint
+    - name: Pylint analysis
       run: |
         pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
 
   build-windows:
+    name: "Windows (Standard)"
     runs-on: windows-latest
     strategy:
       matrix:
@@ -39,6 +41,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pylint
-    - name: Analysing the code with pylint
+    - name: Pylint analysis
       run: |
         pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
