@@ -259,7 +259,7 @@ for key in config:
     for newkey in config[key]:
         newdata.update({newkey: config[key][newkey]})
 
-data = newdata
+config = newdata
 
 env_loaded = load_dotenv()
 
