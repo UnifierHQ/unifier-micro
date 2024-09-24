@@ -113,7 +113,22 @@ class AutoSaveDict(dict):
 
     def save_data(self):
         with open(self.file_path, 'w') as file:
+            # noinspection PyTypeChecker
             json.dump(self, file, indent=4)
+
+class Colors: # format: 0xHEXCODE
+    greens_hair = 0xa19e78
+    unifier = 0xed4545
+    green = 0x2ecc71
+    dark_green = 0x1f8b4c
+    purple = 0x9b59b6
+    red = 0xe74c3c
+    blurple = 0x7289da
+    gold = 0xd4a62a
+    error = 0xff838c
+    warning = 0xe4aa54
+    success = 0x11ad79
+    critical = 0xff0000
 
 def is_user_admin(user_id):
     try:
@@ -291,6 +306,8 @@ if 'token' in list(config.keys()):
 db = AutoSaveDict({})
 db.load_data()
 
+colors = Colors
+
 messages = []
 
 ut_total = round(time.time())
@@ -349,6 +366,86 @@ async def on_ready():
 async def on_disconnect():
     global disconnects
     disconnects += 1
+
+async def bot_shutdown(ctx, restart=False):
+    embed = nextcord.Embed(color=colors.warning)
+
+    if restart:
+        embed.title = f':warning: Restart the bot?'
+        embed.description = 'The bot will automatically restart in 60 seconds.'
+    else:
+        embed.title = f':warning: Shut the bot down?'
+        embed.description = 'The bot will automatically shut down in 60 seconds.'
+
+    components = ui.MessageComponents()
+
+    btns_row = ui.ActionRow(
+        nextcord.ui.Button(
+            style=nextcord.ButtonStyle.red,
+            label='Restart' if restart else 'Shut down',
+            custom_id='shutdown'
+        ),
+        nextcord.ui.Button(
+            style=nextcord.ButtonStyle.gray,
+            label='Nevermind',
+            custom_id='cancel'
+        )
+    )
+
+    components.add_row(btns_row)
+
+    msg = await ctx.send(embed=embed, view=components)
+
+    def check(interaction):
+        return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+    try:
+        interaction = await bot.wait_for('interaction', check=check, timeout=60)
+
+        await interaction.response.edit_message(view=None)
+    except:
+        await msg.edit(view=None)
+        return
+
+    if interaction.data['custom_id'] == 'cancel':
+        return
+
+    embed.title = embed.title.replace(':warning:', ':hourglass:', 1)
+    await msg.edit(embed=embed)
+
+    logger.info("Attempting graceful shutdown...")
+    try:
+        logger.info("Backing up data...")
+        db.save_data()
+        logger.info("Backup complete")
+        if restart:
+            embed.title = f':white_check_mark: Restarting...'
+            embed.description = 'Bot will now restart.'
+        else:
+            embed.title = f':white_check_mark: Shutting down...'
+            embed.description = 'Bot will now shut down.'
+        embed.colour = colors.success
+        await msg.edit(embed=embed)
+    except:
+        logger.exception("Graceful shutdown failed")
+        if restart:
+            embed.title = f':x: Restart failed'
+            embed.description = 'The restart failed.'
+        else:
+            embed.title = f':x: Shutdown failed'
+            embed.description = 'The shutdown failed.'
+        embed.colour = colors.error
+        await msg.edit(embed=embed)
+        return
+
+    if restart:
+        x = open('.restart', 'w+')
+        x.write(f'{time.time()}')
+        x.close()
+
+    logger.info("Shutdown complete")
+    await bot.close()
+    sys.exit(0)
 
 @bot.command(description='Shows this command.')
 async def help(ctx):
@@ -447,6 +544,7 @@ async def help(ctx):
                     max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
                 )
 
+                # noinspection PyTypeChecker
                 cmds = await bot.loop.run_in_executor(
                     None,lambda: sorted(
                         cmds,
@@ -667,6 +765,18 @@ async def uptime(ctx):
         inline=False
     )
     await ctx.send(embed=embed)
+
+@bot.command(aliases=['poweroff'], hidden=True, description='Gracefully shuts the bot down.')
+async def shutdown(ctx):
+    if not ctx.author.id == config['owner']:
+        return
+    await bot_shutdown(ctx)
+
+@bot.command(aliases=['reboot'], hidden=True, description='Gracefully restarts the bot.')
+async def restart(ctx):
+    if not ctx.author.id == config['owner']:
+        return
+    await bot_shutdown(ctx, restart=True)
 
 @bot.command(hidden=True,description='Adds a moderator to the instance.')
 async def addmod(ctx,*,userid):
@@ -1031,6 +1141,7 @@ async def rooms(ctx):
                     max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
                 )
 
+                # noinspection PyTypeChecker
                 roomlist = await bot.loop.run_in_executor(None, lambda: sorted(
                     roomlist,
                     key=lambda x: x.lower()
