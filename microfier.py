@@ -843,6 +843,74 @@ async def make(ctx,*,room):
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
 
+@bot.command(description='Disbands a room.')
+async def disband(ctx, room):
+    room = room.lower()
+    if not room in db['rooms'].keys():
+        return await ctx.send('This room does not exist!')
+
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can disband rooms!')
+
+    embed = nextcord.Embed(
+        title=f':warning: Disband `{room}`?',
+        description='Once the room is disbanded, it\'s gone forever!',
+        color=colors.warning
+    )
+    view = ui.MessageComponents()
+    view.add_row(
+        ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red,
+                label='Disband',
+                custom_id='disband'
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label='Cancel',
+                custom_id='cancel'
+            )
+        )
+    )
+    msg = await ctx.send(embed=embed, view=view)
+    view.clear_items()
+    view.row_count = 0
+    view.add_row(
+        ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red,
+                label='Disband',
+                custom_id='disband',
+                disabled=True
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label='Cancel',
+                custom_id='cancel',
+                disabled=True
+            )
+        )
+    )
+
+    def check(interaction):
+        return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+    try:
+        interaction = await bot.wait_for('interaction',check=check,timeout=60)
+    except:
+        return await msg.edit(view=view)
+
+    if interaction.data['custom_id'] == 'cancel':
+        return await interaction.response.edit_message(view=view)
+
+    db['rooms'].pop(room)
+    embed.title = f':white_check_mark: Disbanded `{room}`'
+    embed.description = 'The room was disbanded successfully.'
+    embed.colour = colors.success
+    await interaction.response.edit_message(embed=embed,view=None)
+    # noinspection PyTypeChecker
+    await bot.loop.run_in_executor(None, lambda: db.save_data())
+
 @bot.command(hidden=True,description="Adds a given rule to a given room.")
 async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
