@@ -97,8 +97,7 @@ class AutoSaveDict(dict):
         self.file_path = 'data.json'
 
         # Ensure necessary keys exist
-        self.update({'rules': {}, 'rooms': {}, 'restricted': [], 'locked': [],
-                     'blocked': {}, 'banned': {}, 'moderators': []})
+        self.update({'rooms': {}, 'blocked': {}, 'banned': {}, 'moderators': []})
 
         # Load data
         self.load_data()
@@ -277,7 +276,7 @@ room_template = {
         'invites': [],
         'platform': 'discord'
     },
-    'emoji': None, 'description': None, 'display_name': None, 'banned': []
+    'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'discord': {}
 }
 
 if not '.welcome.txt' in os.listdir():
@@ -1459,7 +1458,7 @@ async def rooms(ctx):
 @bot.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
 async def servers(ctx,*,room='main'):
     try:
-        data = db['rooms'][room]
+        data = db['rooms'][room]['discord']
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of all rooms.')
     text = ''
@@ -1486,7 +1485,7 @@ async def bind(ctx, *, room=''):
         room = 'main'
         await ctx.send('**No room was given, defaulting to main**')
     try:
-        data = db['rooms'][room]
+        data = db['rooms'][room]['discord']
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of rooms.')
     embed = nextcord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
@@ -1563,10 +1562,7 @@ async def bind(ctx, *, room=''):
         if resp.data['custom_id'] == 'reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-        data = db['rooms'][room]
-        guild = [webhook.id]
-        data.update({f'{ctx.guild.id}': guild})
-        db['rooms'][room] = data
+        db['rooms'][room]['discord'].update({f'{ctx.guild.id}': [webhook.id]})
         db.save_data()
         await ctx.send(
             '# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
@@ -1585,10 +1581,9 @@ async def unbind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
     room = room.lower()
-    try:
-        data = db['rooms'][room]
-    except:
-        return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+    if not room in db['rooms'].keys():
+        return await ctx.send('This isn\'t a valid room!')
+    data = db['rooms'][room]['discord']
     try:
         try:
             hooks = await ctx.guild.webhooks()
@@ -1602,8 +1597,7 @@ async def unbind(ctx, *, room=''):
             if webhook.id in hook_ids:
                 await webhook.delete()
                 break
-        data.pop(f'{ctx.guild.id}')
-        db['rooms'][room] = data
+        db['rooms'][room]['discord'].pop(f'{ctx.guild.id}')
         db.save_data()
         await ctx.send(
             '# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
@@ -1853,7 +1847,7 @@ async def on_message(message):
     for room in list(db['rooms'].keys()):
         try:
             for hook in hooks:
-                if hook.id == db['rooms'][room][f'{message.guild.id}'][0]:
+                if hook.id == db['rooms'][room]['discord'][f'{message.guild.id}'][0]:
                     roomname = room
                     break
         except:
@@ -1864,7 +1858,7 @@ async def on_message(message):
     if not roomname:
         return
 
-    if ('nextcord.gg/' in message.content or 'nextcord.com/invite/' in message.content or
+    if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
             'discordapp.com/invite/' in message.content):
         try:
             await message.delete()
@@ -1922,7 +1916,7 @@ async def on_message(message):
     if not trimmed:
         donotshow = True
 
-    for guild_id in list(db['rooms'][roomname].keys()):
+    for guild_id in list(db['rooms'][roomname]['discord'].keys()):
         if int(guild_id)==message.guild.id:
             continue
         guild = bot.get_guild(int(guild_id))
@@ -1944,7 +1938,7 @@ async def on_message(message):
             except:
                 files.append(await attachment.to_file(use_cached=True, spoiler=False))
 
-        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname]['discord'][f'{guild.id}'][0])
         components = None
 
         if reply_msg:
@@ -2081,14 +2075,14 @@ async def on_message_delete(message):
 
     roomname = msg.room
 
-    for guild_id in list(db['rooms'][roomname].keys()):
+    for guild_id in list(db['rooms'][roomname]['discord'].keys()):
         if int(guild_id)==message.guild.id:
             continue
         guild = bot.get_guild(int(guild_id))
 
         try:
             msg_id = int(await msg.fetch_id(str(guild.id)))
-            webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+            webhook = await bot.fetch_webhook(db['rooms'][roomname]['discord'][f'{guild.id}'][0])
         except:
             continue
 
