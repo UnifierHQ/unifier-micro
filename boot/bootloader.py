@@ -5,6 +5,7 @@ import json
 import time
 
 reinstall = '--reinstall' in sys.argv
+depinstall = '--install-deps' in sys.argv
 
 install_options = [
     {
@@ -48,11 +49,12 @@ if not options:
 else:
     options = ' ' + ' '.join(options)
 
-if not '.install.json' in os.listdir() or reinstall:
-    if os.path.isdir('update') and not reinstall:
+if not '.install.json' in os.listdir() or reinstall or depinstall:
+    if os.path.isdir('update') and not reinstall and not depinstall:
         # unifier was likely updated from v2 or older
         print('\x1b[33;1mLegacy installation detected, skipping installer.\x1b[0m')
         with open('.install.json', 'w+') as file:
+            # noinspection PyTypeChecker
             json.dump(
                 {
                     'product': internal["product"],
@@ -63,52 +65,68 @@ if not '.install.json' in os.listdir() or reinstall:
             )
     else:
         # this installation is fresh
-        if not reinstall:
-            print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
+        if not depinstall:
+            if not reinstall:
+                print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
 
-        if len(install_options) == 1:
-            install_option = install_options[0]['id']
-        else:
-            print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
+            if len(install_options) == 1:
+                install_option = install_options[0]['id']
+            else:
+                print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
 
-            for index in range(len(install_options)):
-                option = install_options[index]
-                print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
-                print(f'{option["color"]}m{option["description"]}\x1b[0m')
+                for index in range(len(install_options)):
+                    option = install_options[index]
+                    print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
+                    print(f'{option["color"]}m{option["description"]}\x1b[0m')
 
-            print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
+                print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
+
+                try:
+                    install_option = int(input())
+
+                    if install_option < 0 or install_option >= len(install_options):
+                        raise ValueError()
+                except:
+                    print(f'\x1b[31;1mAborting.\x1b[0m')
+                    sys.exit(1)
+
+                install_option = install_options[install_option]['id']
+
+            print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
+            print(f'- Product to install: {internal["product_name"]}')
+            print(f'- Installation option: {install_option}')
+            print(f'- Install directory: {os.getcwd()}')
+            print(f'- Python command/binary: {binary}\n')
+            print('\x1b[33;1mProceed with installation? (y/n)\x1b[0m')
 
             try:
-                install_option = int(input())
-
-                if install_option < 0 or install_option >= len(install_options):
-                    raise ValueError()
+                answer = input().lower()
             except:
                 print(f'\x1b[31;1mAborting.\x1b[0m')
                 sys.exit(1)
 
-            install_option = install_options[install_option]['id']
+            if not answer == 'y':
+                print(f'\x1b[31;1mAborting.\x1b[0m')
+                sys.exit(1)
+        else:
+            try:
+                with open('.install.json') as file:
+                    install_data = json.load(file)
+            except:
+                print('\x1b[31;1mPlease install Unifier first.\x1b[0m')
+                sys.exit(1)
 
-        print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
-        print(f'- Product to install: {internal["product_name"]}')
-        print(f'- Installation option: {install_option}')
-        print(f'- Install directory: {os.getcwd()}')
-        print(f'- Python command/binary: {binary}\n')
-        print('\x1b[33;1mProceed with installation? (y/n)\x1b[0m')
+            print('\x1b[33;1mInstalling dependencies...\x1b[0m')
 
-        try:
-            answer = input().lower()
-        except:
-            print(f'\x1b[31;1mAborting.\x1b[0m')
-            sys.exit(1)
-
-        if not answer == 'y':
-            print(f'\x1b[31;1mAborting.\x1b[0m')
-            sys.exit(1)
+            install_option = install_data['option']
 
         exit_code = os.system(f'{binary} boot/dep_installer.py {install_option}{options}')
         if not exit_code == 0:
             sys.exit(exit_code)
+
+        if depinstall:
+            print('\x1b[36;1mDependencies installed successfully.\x1b[0m')
+            sys.exit(0)
 
         exit_code = os.system(f'{binary} boot/installer.py {install_option}{options}')
 
@@ -116,8 +134,8 @@ if not '.install.json' in os.listdir() or reinstall:
             print('\x1b[31;1mInstaller has crashed or has been aborted.\x1b[0m')
             sys.exit(exit_code)
 
-        print('\x1b[33;1mPlease re-run the run script after configuring the bot to start the bot.\x1b[0m')
-        sys.exit(0)
+        # sleep to prevent 429s
+        time.sleep(5)
 
 if not boot_file in os.listdir():
     if os.path.isdir('update'):
@@ -138,8 +156,10 @@ if '.restart' in os.listdir():
     os.remove('.restart')
     print('\x1b[33;1mAn incomplete restart was detected.\x1b[0m')
 
+restart_options = ''
+
 while True:
-    exit_code = os.system(f'{binary} {boot_file}{options}')
+    exit_code = os.system(f'{binary} {boot_file}{restart_options}{options}')
 
     crash_reboot = False
     if not exit_code == 0:
@@ -153,6 +173,11 @@ while True:
 
     if crash_reboot or '.restart' in os.listdir():
         if '.restart' in os.listdir():
+            x = open('.restart', 'r', encoding='utf-8')
+            data = x.read().split(' ')
+            x.close()
+
+            restart_options = (' ' + data[1]) if len(data) > 1 else ''
             os.remove('.restart')
 
         print(f'\x1b[33;1mRestarting {internal["product_name"]}...\x1b[0m')
