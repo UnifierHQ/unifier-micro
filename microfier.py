@@ -133,7 +133,7 @@ class Colors: # format: 0xHEXCODE
 def is_user_admin(user_id):
     try:
         global admin_ids
-        if user_id in admin_ids:
+        if user_id in admin_ids or user_id == config['owner']:
             return True
         else:
             return False
