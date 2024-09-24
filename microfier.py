@@ -839,7 +839,7 @@ async def make(ctx,*,room):
         return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
-    db['rooms'].update({room:dict(room_template)})
+    db['rooms'].update({room:{'meta': dict(room_template)}})
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
 
