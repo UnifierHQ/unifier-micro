@@ -26,10 +26,13 @@ from dotenv import load_dotenv
 import sys
 import os
 import re
-from utils import log, ui
+from utils import log, ui, secrets
 import math
+import tomli
+import tomli_w
+import traceback
 
-version = '2.0.1'
+version = '3.0.0'
 
 def timetoint(t,timeoutcap=False):
     try:
@@ -94,8 +97,7 @@ class AutoSaveDict(dict):
         self.file_path = 'data.json'
 
         # Ensure necessary keys exist
-        self.update({'rules': {}, 'rooms': {}, 'restricted': [], 'locked': [],
-                     'blocked': {}, 'banned': {}, 'moderators': []})
+        self.update({'rooms': {}, 'blocked': {}, 'banned': {}, 'moderators': []})
 
         # Load data
         self.load_data()
@@ -110,12 +112,27 @@ class AutoSaveDict(dict):
 
     def save_data(self):
         with open(self.file_path, 'w') as file:
+            # noinspection PyTypeChecker
             json.dump(self, file, indent=4)
 
-def is_user_admin(id):
+class Colors: # format: 0xHEXCODE
+    greens_hair = 0xa19e78
+    unifier = 0xed4545
+    green = 0x2ecc71
+    dark_green = 0x1f8b4c
+    purple = 0x9b59b6
+    red = 0xe74c3c
+    blurple = 0x7289da
+    gold = 0xd4a62a
+    error = 0xff838c
+    warning = 0xe4aa54
+    success = 0x11ad79
+    critical = 0xff0000
+
+def is_user_admin(user_id):
     try:
         global admin_ids
-        if id in admin_ids:
+        if user_id in admin_ids or user_id == config['owner']:
             return True
         else:
             return False
@@ -124,7 +141,7 @@ def is_user_admin(id):
 
 def is_room_restricted(room,db):
     try:
-        if room in db['restricted']:
+        if db['rooms'][room]['meta']['restricted']:
             return True
         else:
             return False
@@ -133,7 +150,7 @@ def is_room_restricted(room,db):
 
 def is_room_locked(room,db):
     try:
-        if room in db['locked']:
+        if db['rooms'][room]['meta']['locked']:
             return True
         else:
             return False
@@ -146,9 +163,102 @@ async def fetch_message(message_id):
             return message
     raise ValueError("No message found")
 
+async def convert_1():
+    """Converts data structure to be v3.0.0-compatible.
+    Eliminates the need for a lot of unneeded keys."""
+    if not 'rules' in db.keys():
+        # conversion is not needed
+        return
+    for room in db['rooms']:
+        db['rooms'][room] = {'meta':{
+            'rules': db['rules'][room],
+            'restricted': room in db['restricted'],
+            'locked': room in db['locked'],
+            'private': False,
+            'private_meta': {
+                'server': None,
+                'allowed': [],
+                'invites': [],
+                'platform': 'discord'
+            },
+            'emoji': None,
+            'description': None,
+            'display_name': None,
+            'banned': []
+        },'discord': db['rooms'][room]}
 
-with open('config.json', 'r') as file:
-    config = json.load(file)
+    db.pop('rules')
+    db.pop('restricted')
+    db.pop('locked')
+
+    # not sure what to do about the data stored in rooms_revolt key now...
+    # maybe delete the key entirely? or keep it in case conversion went wrong?
+
+    db.save_data()
+
+
+try:
+    with open('.install.json') as file:
+        install_info = json.load(file)
+
+    if not install_info['product'] == 'unifier-micro':
+        print('This installation is not compatible with Unifier Micro.')
+        sys.exit(1)
+except:
+    if sys.platform == 'win32':
+        print('To start the bot, please run "run.bat" instead.')
+    else:
+        print('To start the bot, please run "./run.sh" instead.')
+        print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
+    sys.exit(1)
+
+config_file = 'config.toml'
+if 'devmode' in sys.argv:
+    config_file = 'devconfig.toml'
+
+valid_toml = False
+try:
+    with open(config_file, 'rb') as file:
+        config = tomli.load(file)
+    valid_toml = True
+except:
+    try:
+        with open('config.json') as file:
+            config = json.load(file)
+    except:
+        traceback.print_exc()
+        print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+        sys.exit(1)
+
+    # toml is likely in update files, pull from there
+    with open('update/config.toml', 'rb') as file:
+        newdata = tomli.load(file)
+
+    def update_toml(old, new):
+        for key in new:
+            for newkey in new[key]:
+                if newkey in old.keys():
+                    new[key].update({newkey: old[newkey]})
+        return new
+
+    config = update_toml(config, newdata)
+
+    with open(config_file, 'wb+') as file:
+        tomli_w.dump(config, file)
+
+try:
+    with open('boot_config.json', 'r') as file:
+        boot_data = json.load(file)
+except:
+    boot_data = {}
+
+newdata = {}
+
+for key in config:
+    for newkey in config[key]:
+        newdata.update({newkey: config[key][newkey]})
+
+config = newdata
 
 env_loaded = load_dotenv()
 
@@ -157,6 +267,24 @@ package = config['package']
 admin_ids = config['admin_ids']
 
 logger = log.buildlogger(package,'core',level)
+
+should_encrypt = int(os.environ['UNIFIER_ENCOPTION']) == 1
+tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], config['encrypted_env_salt'], config['debug'])
+
+if should_encrypt:
+    tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], config['encrypted_env_salt'])
+    os.remove('.env')
+
+room_template = {
+    'rules': [], 'restricted': False, 'locked': False, 'private': False,
+    'private_meta': {
+        'server': None,
+        'allowed': [],
+        'invites': [],
+        'platform': 'discord'
+    },
+    'emoji': None, 'description': None, 'display_name': None, 'banned': []
+}
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -170,6 +298,10 @@ if not 'repo' in list(config.keys()):
     logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
     sys.exit(1)
 
+if not valid_toml:
+    logger.warning('From v3.0.0, Unifier will use config.toml rather than config.json.')
+    logger.warning('To change your Unifier configuration, please use the new file.')
+
 if not env_loaded or not "TOKEN" in os.environ:
     logger.critical('Could not find token from .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
     sys.exit(1)
@@ -179,6 +311,8 @@ if 'token' in list(config.keys()):
 
 db = AutoSaveDict({})
 db.load_data()
+
+colors = Colors
 
 messages = []
 
@@ -230,12 +364,94 @@ async def on_ready():
         logger.debug(f'Pinging servers every {round(config["ping"])} seconds')
     elif config['ping'] <= 0:
         logger.debug(f'Periodic pinging disabled')
+    logger.debug('Restructuring room data...')
+    await convert_1()
     logger.info('Unifier is ready!')
 
 @bot.event
 async def on_disconnect():
     global disconnects
     disconnects += 1
+
+async def bot_shutdown(ctx, restart=False):
+    embed = nextcord.Embed(color=colors.warning)
+
+    if restart:
+        embed.title = f':warning: Restart the bot?'
+        embed.description = 'The bot will automatically restart in 60 seconds.'
+    else:
+        embed.title = f':warning: Shut the bot down?'
+        embed.description = 'The bot will automatically shut down in 60 seconds.'
+
+    components = ui.MessageComponents()
+
+    btns_row = ui.ActionRow(
+        nextcord.ui.Button(
+            style=nextcord.ButtonStyle.red,
+            label='Restart' if restart else 'Shut down',
+            custom_id='shutdown'
+        ),
+        nextcord.ui.Button(
+            style=nextcord.ButtonStyle.gray,
+            label='Nevermind',
+            custom_id='cancel'
+        )
+    )
+
+    components.add_row(btns_row)
+
+    msg = await ctx.send(embed=embed, view=components)
+
+    def check(interaction):
+        return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+    try:
+        interaction = await bot.wait_for('interaction', check=check, timeout=60)
+
+        await interaction.response.edit_message(view=None)
+    except:
+        await msg.edit(view=None)
+        return
+
+    if interaction.data['custom_id'] == 'cancel':
+        return
+
+    embed.title = embed.title.replace(':warning:', ':hourglass:', 1)
+    await msg.edit(embed=embed)
+
+    logger.info("Attempting graceful shutdown...")
+    try:
+        logger.info("Backing up data...")
+        db.save_data()
+        logger.info("Backup complete")
+        if restart:
+            embed.title = f':white_check_mark: Restarting...'
+            embed.description = 'Bot will now restart.'
+        else:
+            embed.title = f':white_check_mark: Shutting down...'
+            embed.description = 'Bot will now shut down.'
+        embed.colour = colors.success
+        await msg.edit(embed=embed)
+    except:
+        logger.exception("Graceful shutdown failed")
+        if restart:
+            embed.title = f':x: Restart failed'
+            embed.description = 'The restart failed.'
+        else:
+            embed.title = f':x: Shutdown failed'
+            embed.description = 'The shutdown failed.'
+        embed.colour = colors.error
+        await msg.edit(embed=embed)
+        return
+
+    if restart:
+        x = open('.restart', 'w+')
+        x.write(f'{time.time()}')
+        x.close()
+
+    logger.info("Shutdown complete")
+    await bot.close()
+    sys.exit(0)
 
 @bot.command(description='Shows this command.')
 async def help(ctx):
@@ -334,6 +550,7 @@ async def help(ctx):
                     max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
                 )
 
+                # noinspection PyTypeChecker
                 cmds = await bot.loop.run_in_executor(
                     None,lambda: sorted(
                         cmds,
@@ -555,6 +772,18 @@ async def uptime(ctx):
     )
     await ctx.send(embed=embed)
 
+@bot.command(aliases=['poweroff'], hidden=True, description='Gracefully shuts the bot down.')
+async def shutdown(ctx):
+    if not ctx.author.id == config['owner']:
+        return
+    await bot_shutdown(ctx)
+
+@bot.command(aliases=['reboot'], hidden=True, description='Gracefully restarts the bot.')
+async def restart(ctx):
+    if not ctx.author.id == config['owner']:
+        return
+    await bot_shutdown(ctx, restart=True)
+
 @bot.command(hidden=True,description='Adds a moderator to the instance.')
 async def addmod(ctx,*,userid):
     if not is_user_admin(ctx.author.id):
@@ -616,21 +845,88 @@ async def make(ctx,*,room):
         return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
     if room in list(db['rooms'].keys()):
         return await ctx.send('This room already exists!')
-    db['rooms'].update({room:{}})
-    db['rules'].update({room:[]})
+    db['rooms'].update({room:{'meta': dict(room_template), 'discord': {}}})
     db.save_data()
     await ctx.send(f'Created room `{room}`!')
+
+@bot.command(description='Disbands a room.')
+async def disband(ctx, room):
+    room = room.lower()
+    if not room in db['rooms'].keys():
+        return await ctx.send('This room does not exist!')
+
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can disband rooms!')
+
+    embed = nextcord.Embed(
+        title=f':warning: Disband `{room}`?',
+        description='Once the room is disbanded, it\'s gone forever!',
+        color=colors.warning
+    )
+    view = ui.MessageComponents()
+    view.add_row(
+        ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red,
+                label='Disband',
+                custom_id='disband'
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label='Cancel',
+                custom_id='cancel'
+            )
+        )
+    )
+    msg = await ctx.send(embed=embed, view=view)
+    view.clear_items()
+    view.row_count = 0
+    view.add_row(
+        ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red,
+                label='Disband',
+                custom_id='disband',
+                disabled=True
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label='Cancel',
+                custom_id='cancel',
+                disabled=True
+            )
+        )
+    )
+
+    def check(interaction):
+        return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+    try:
+        interaction = await bot.wait_for('interaction',check=check,timeout=60)
+    except:
+        return await msg.edit(view=view)
+
+    if interaction.data['custom_id'] == 'cancel':
+        return await interaction.response.edit_message(view=view)
+
+    db['rooms'].pop(room)
+    embed.title = f':white_check_mark: Disbanded `{room}`'
+    embed.description = 'The room was disbanded successfully.'
+    embed.colour = colors.success
+    await interaction.response.edit_message(embed=embed,view=None)
+    # noinspection PyTypeChecker
+    await bot.loop.run_in_executor(None, lambda: db.save_data())
 
 @bot.command(hidden=True,description="Adds a given rule to a given room.")
 async def addrule(ctx,room,*,rule):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rules!')
     room = room.lower()
-    if not room in list(db['rules'].keys()):
+    if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if len(db['rules'][room]) >= 25:
+    if len(db['rooms'][room]['meta']['rules']) >= 25:
         return await ctx.send('You can only have up to 25 rules in a room!')
-    db['rules'][room].append(rule)
+    db['rules'][room]['rules'].append(rule)
     db.save_data()
     await ctx.send('Added rule!')
 
@@ -645,9 +941,9 @@ async def delrule(ctx,room,*,rule):
             raise ValueError()
     except:
         return await ctx.send('Rule must be a number higher than 0.')
-    if not room in list(db['rules'].keys()):
+    if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    db['rules'][room].pop(rule-1)
+    db['rooms'][room]['meta']['rules'].pop(rule-1)
     db.save_data()
     await ctx.send('Removed rule!')
 
@@ -666,11 +962,8 @@ async def rules(ctx, *, room=''):
 
     index = 0
     text = ''
-    if room in list(db['rules'].keys()):
-        rules = db['rules'][room]
-        if len(rules) == 0:
-            return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
-    else:
+    rules = db['rooms'][room]['meta']['rules']
+    if len(rules) == 0:
         return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
     for rule in rules:
         if text == '':
@@ -686,17 +979,17 @@ async def rules(ctx, *, room=''):
     hidden=True,
     description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
 )
-async def roomrestrict(ctx,*,room):
+async def restrict(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
     room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if room in db['restricted']:
-        db['restricted'].remove(room)
+    if db['rooms'][room]['meta']['restricted']:
+        db['rooms'][room]['meta']['restricted'] = False
         await ctx.send(f'Unrestricted `{room}`!')
     else:
-        db['restricted'].append(room)
+        db['rooms'][room]['meta']['restricted'] = True
         await ctx.send(f'Restricted `{room}`!')
     db.save_data()
 
@@ -704,19 +997,39 @@ async def roomrestrict(ctx,*,room):
     hidden=True,
     description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
 )
-async def roomlock(ctx,*,room):
+async def lock(ctx,*,room):
     if not is_user_admin(ctx.author.id):
         return await ctx.send('Only admins can modify rooms!')
     room = room.lower()
     if not room in list(db['rooms'].keys()):
         return await ctx.send('This room does not exist!')
-    if room in db['locked']:
-        db['locked'].remove(room)
+    if db['rooms'][room]['meta']['locked']:
+        db['rooms'][room]['meta']['locked'] = False
         await ctx.send(f'Unlocked `{room}`!')
     else:
-        db['locked'].append(room)
+        db['rooms'][room]['meta']['locked'] = True
         await ctx.send(f'Locked `{room}`!')
     db.save_data()
+
+@bot.command(name='display-name', hidden=True, description='Sets room display name.')
+async def display_name(ctx, room, *, name=''):
+    if not is_user_admin(ctx.author.id):
+        return await ctx.send('Only admins can modify rooms!')
+    room = room.lower()
+    if not room in list(db['rooms'].keys()):
+        return await ctx.send('This room does not exist!')
+
+    if len(name) == 0:
+        if not db['rooms'][room]['meta']['display_name']:
+            return await ctx.send('There is no display name to reset for this room.')
+        db['rooms'][room]['meta']['display_name'] = None
+        db.save_data()
+        return await ctx.send('Display name removed.')
+    elif len(name) > 32:
+        return await ctx.send('Display name is too long. Please keep it within 32 characters.')
+    db['rooms'][room]['meta']['display_name'] = name
+    db.save_data()
+    await ctx.send(f'Updated display name to `{name}`!')
 
 @bot.command(description='Measures bot latency.')
 async def ping(ctx):
@@ -796,6 +1109,9 @@ async def rooms(ctx):
                 if index >= len(roomlist):
                     break
                 name = roomlist[index]
+                display_name = (
+                    db['rooms'][name]['meta']['display_name'] or name
+                )
                 emoji = (
                     '\U0001F527' if is_room_restricted(roomlist[index],db) else
                     '\U0001F512' if is_room_locked(roomlist[index],db) else
@@ -808,12 +1124,15 @@ async def rooms(ctx):
                 )
 
                 embed.add_field(
-                    name=f'{emoji} `{name}`',
+                    name=f'{emoji} '+(
+                        f'{display_name} (`{name}`)' if db['rooms'][name]['meta']['display_name'] else
+                        f'`{display_name}`'
+                    ),
                     value=description,
                     inline=False
                 )
                 selection.add_option(
-                    label=name,
+                    label=display_name,
                     emoji=emoji,
                     description=description,
                     value=name
@@ -896,6 +1215,7 @@ async def rooms(ctx):
                     max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
                 )
 
+                # noinspection PyTypeChecker
                 roomlist = await bot.loop.run_in_executor(None, lambda: sorted(
                     roomlist,
                     key=lambda x: x.lower()
@@ -906,6 +1226,9 @@ async def rooms(ctx):
                     if index >= len(roomlist):
                         break
                     room = roomlist[index]
+                    display_name = (
+                        db['rooms'][room]['meta']['display_name'] or room
+                    )
                     emoji = (
                         '\U0001F527' if is_room_restricted(roomlist[index], db) else
                         '\U0001F512' if is_room_locked(roomlist[index], db) else
@@ -917,12 +1240,15 @@ async def rooms(ctx):
                         'Public room'
                     )
                     embed.add_field(
-                        name=f'{emoji} `{room}`',
+                        name=f'{emoji} '+(
+                            f'{display_name} (`{room}`)' if db['rooms'][room]['meta']['display_name'] else
+                            f'`{display_name}`'
+                        ),
                         value=roomdesc,
                         inline=False
                     )
                     selection.add_option(
-                        label=room,
+                        label=display_name,
                         description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
                         value=room,
                         emoji=emoji
@@ -1011,6 +1337,9 @@ async def rooms(ctx):
                 if was_searching else
                 f'{bot.user.global_name or bot.user.name} rooms / {roomname}'
             )
+            display_name = (
+                db['rooms'][roomname]['meta']['display_name'] or roomname
+            )
             description = (
                 db['descriptions'][roomname]
                 if roomname in db['descriptions'].keys() else 'This room has no description.'
@@ -1020,7 +1349,10 @@ async def rooms(ctx):
                 '\U0001F512' if is_room_locked(roomname, db) else
                 '\U0001F310'
             )
-            embed.description = f'# **{emoji} `{roomname}`**\n{description}'
+            if db['rooms'][roomname]['meta']['display_name']:
+                embed.description = f'# **{emoji} {display_name}**\n`{roomname}`\n\n{description}'
+            else:
+                embed.description = f'# **{emoji} `{display_name}`**\n{description}'
             components.add_rows(
                 ui.ActionRow(
                     nextcord.ui.Button(
@@ -1045,10 +1377,7 @@ async def rooms(ctx):
             )
             index = 0
             text = ''
-            if roomname in list(db['rules'].keys()):
-                rules = db['rules'][roomname]
-            else:
-                rules = []
+            rules = db['rooms'][roomname]['rules']
             for rule in rules:
                 if text == '':
                     text = f'1. {rule}'
@@ -1136,7 +1465,7 @@ async def rooms(ctx):
 @bot.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
 async def servers(ctx,*,room='main'):
     try:
-        data = db['rooms'][room]
+        data = db['rooms'][room]['discord']
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of all rooms.')
     text = ''
@@ -1163,7 +1492,7 @@ async def bind(ctx, *, room=''):
         room = 'main'
         await ctx.send('**No room was given, defaulting to main**')
     try:
-        data = db['rooms'][room]
+        data = db['rooms'][room]['discord']
     except:
         return await ctx.send(f'This isn\'t a valid room. Run `{bot.command_prefix}rooms` for a list of rooms.')
     embed = nextcord.Embed(title='Ensuring channel is not connected...', description='This may take a while.')
@@ -1190,10 +1519,10 @@ async def bind(ctx, *, room=''):
                 f'Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{bot.command_prefix}unlink` it then `{bot.command_prefix}link` it back.')
         index = 0
         text = ''
-        if len(db['rules'][room]) == 0:
+        if len(db['rooms'][room]['meta']['rules']) == 0:
             text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `{bot.command_prefix}rules {room}`.'
         else:
-            for rule in db['rules'][room]:
+            for rule in db['rooms'][room]['meta']['rules']:
                 if text == '':
                     text = f'1. {rule}'
                 else:
@@ -1240,10 +1569,7 @@ async def bind(ctx, *, room=''):
         if resp.data['custom_id'] == 'reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-        data = db['rooms'][room]
-        guild = [webhook.id]
-        data.update({f'{ctx.guild.id}': guild})
-        db['rooms'][room] = data
+        db['rooms'][room]['discord'].update({f'{ctx.guild.id}': [webhook.id]})
         db.save_data()
         await ctx.send(
             '# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
@@ -1262,10 +1588,9 @@ async def unbind(ctx, *, room=''):
     if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
         return await ctx.send('You don\'t have the necessary permissions.')
     room = room.lower()
-    try:
-        data = db['rooms'][room]
-    except:
-        return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+    if not room in db['rooms'].keys():
+        return await ctx.send('This isn\'t a valid room!')
+    data = db['rooms'][room]['discord']
     try:
         try:
             hooks = await ctx.guild.webhooks()
@@ -1279,8 +1604,7 @@ async def unbind(ctx, *, room=''):
             if webhook.id in hook_ids:
                 await webhook.delete()
                 break
-        data.pop(f'{ctx.guild.id}')
-        db['rooms'][room] = data
+        db['rooms'][room]['discord'].pop(f'{ctx.guild.id}')
         db.save_data()
         await ctx.send(
             '# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
@@ -1288,8 +1612,8 @@ async def unbind(ctx, *, room=''):
         await ctx.send('Something went wrong - check my permissions.')
         raise
 
-@bot.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
-async def restrict(ctx, *, target):
+@bot.command(description='Blocks a user or server from bridging messages to your server.')
+async def block(ctx, *, target):
     if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
             ctx.author.guild_permissions.ban_members):
         return await ctx.send('You cannot restrict members/servers.')
@@ -1315,8 +1639,8 @@ async def restrict(ctx, *, target):
     db.save_data()
     await ctx.send('User/server can no longer forward messages to this channel!')
 
-@bot.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
-async def globalban(ctx, target, duration, *, reason='no reason given'):
+@bot.command(aliases=['globalban'],hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
+async def ban(ctx, target, duration, *, reason='no reason given'):
     if not ctx.author.id in db['moderators']:
         return
     forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
@@ -1530,7 +1854,7 @@ async def on_message(message):
     for room in list(db['rooms'].keys()):
         try:
             for hook in hooks:
-                if hook.id == db['rooms'][room][f'{message.guild.id}'][0]:
+                if hook.id == db['rooms'][room]['discord'][f'{message.guild.id}'][0]:
                     roomname = room
                     break
         except:
@@ -1541,7 +1865,7 @@ async def on_message(message):
     if not roomname:
         return
 
-    if ('nextcord.gg/' in message.content or 'nextcord.com/invite/' in message.content or
+    if ('discord.gg/' in message.content or 'discord.com/invite/' in message.content or
             'discordapp.com/invite/' in message.content):
         try:
             await message.delete()
@@ -1599,7 +1923,7 @@ async def on_message(message):
     if not trimmed:
         donotshow = True
 
-    for guild_id in list(db['rooms'][roomname].keys()):
+    for guild_id in list(db['rooms'][roomname]['discord'].keys()):
         if int(guild_id)==message.guild.id:
             continue
         guild = bot.get_guild(int(guild_id))
@@ -1621,7 +1945,7 @@ async def on_message(message):
             except:
                 files.append(await attachment.to_file(use_cached=True, spoiler=False))
 
-        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+        webhook: nextcord.Webhook = await bot.fetch_webhook(db['rooms'][roomname]['discord'][f'{guild.id}'][0])
         components = None
 
         if reply_msg:
@@ -1758,17 +2082,20 @@ async def on_message_delete(message):
 
     roomname = msg.room
 
-    for guild_id in list(db['rooms'][roomname].keys()):
+    for guild_id in list(db['rooms'][roomname]['discord'].keys()):
         if int(guild_id)==message.guild.id:
             continue
         guild = bot.get_guild(int(guild_id))
 
         try:
             msg_id = int(await msg.fetch_id(str(guild.id)))
-            webhook = await bot.fetch_webhook(db['rooms'][roomname][f'{guild.id}'][0])
+            webhook = await bot.fetch_webhook(db['rooms'][roomname]['discord'][f'{guild.id}'][0])
         except:
             continue
 
         await webhook.delete_message(msg_id)
 
-bot.run(os.environ.get('TOKEN'))
+try:
+    bot.run(tokenstore.retrieve('TOKEN'))
+except KeyboardInterrupt:
+    sys.exit(0)

@@ -1,0 +1,19 @@
+{
+  "maintainer": "UnifierHQ",
+  "product": "unifier-micro",
+  "product_name": "Unifier Micro",
+  "base_bootfile": "microfier.py",
+  "repo": "https://github.com/UnifierHQ/unifie-micror",
+  "required_py_version": 9,
+  "skip_server": true,
+  "options": [
+    {
+        "id": "standard",
+        "name": "\uD83D\uDC8E Standard",
+        "description": "Uses the latest stable Nextcord version.",
+        "default": true,
+        "prefix": "",
+        "color": "\\x1b[32"
+    }
+  ]
+}

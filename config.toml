@@ -1,0 +1,15 @@
+[system]
+debug = false
+package = "microfier"
+encrypted_env_salt = 10 # change this to whatever you want, as long as the bot doesn't crash
+
+[roles]
+owner = -1
+admin_ids = []
+
+[bot]
+prefix = "u!"
+ping = 0
+
+[plugin]
+"repo" = "https://github.com/greeeen-dev/unifier-micro"

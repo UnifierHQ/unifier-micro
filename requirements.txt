@@ -1,2 +1,5 @@
 nextcord
 python-dotenv
+tomli
+tomli-w
+pycryptodome
