@@ -1,22 +1,32 @@
+"""
+Unifier - A sophisticated Discord bot uniting servers and platforms
+Copyright (C) 2024  Green, ItsAsheer
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import os
 import sys
 import shutil
 import json
 import time
+import getpass
 
 reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
-
-install_options = [
-    {
-        'id': 'stable',
-        'name': '\U0001F48E Standard',
-        'description': 'Uses the latest stable Nextcord version.',
-        'default': True,
-        'prefix': '',
-        'color': '\x1b[32'
-    }
-]
+manage_tokens = '--tokens' in sys.argv
+clear_tokens = '--clear-tokens' in sys.argv
 
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
@@ -25,6 +35,7 @@ if os.getcwd().endswith('/boot'):
 with open('boot/internal.json') as file:
     internal = json.load(file)
 
+install_options = internal['options']
 
 boot_config = {}
 try:
@@ -65,7 +76,10 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
             )
     else:
         # this installation is fresh
-        if not depinstall:
+        if manage_tokens or clear_tokens:
+            print(f'\x1b[31;1mNo Unifier installation was detected.\x1b[0m')
+            sys.exit(1)
+        elif not depinstall:
             if not reinstall:
                 print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
 
@@ -137,6 +151,49 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
         # sleep to prevent 429s
         time.sleep(5)
 
+# tomli should be installed by now
+try:
+    import tomli  # pylint: disable=import-error
+except:
+    print('\x1b[31;1mCould not import tomli. It should have been installed, please restart the bootloader.\x1b[0m')
+    sys.exit(1)
+
+with open('config.toml', 'rb') as file:
+    # noinspection PyTypeChecker
+    bot_config = tomli.load(file)
+
+if clear_tokens:
+    print('\x1b[37;41;1mWARNING: ALL TOKENS WILL BE CLEARED!\x1b[0m')
+    print('\x1b[33;1mYou should only clear your tokens if you forgot your password.\x1b[0m')
+    print('\x1b[33;1mThis process is irreversible. Once it\'s done, there\'s no going back!\x1b[0m')
+    print()
+    print('\x1b[33;1mProceed anyways? (y/n)\x1b[0m')
+
+    try:
+        confirm = input().lower()
+        if not confirm == 'y':
+            raise ValueError()
+    except:
+        print('\x1b[31;1mAborting.\x1b[0m')
+        sys.exit(1)
+
+    encryption_password = getpass.getpass('New password: ')
+    confirm_password = getpass.getpass('Confirm new password: ')
+    if not encryption_password == confirm_password:
+        print('\x1b[31;1mPasswords do not match.\x1b[0m')
+        sys.exit(1)
+
+    os.remove('.encryptedenv')
+    os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+    os.system(f'{binary} boot/tokenmgr.py')
+    sys.exit(0)
+
+if manage_tokens:
+    encryption_password = getpass.getpass('Password: ')
+    os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+    os.system(f'{binary} boot/tokenmgr.py')
+    sys.exit(0)
+
 if not boot_file in os.listdir():
     if os.path.isdir('update'):
         print(f'\x1b[33;1m{boot_file} is missing, copying from update folder.\x1b[0m')
@@ -158,7 +215,60 @@ if '.restart' in os.listdir():
 
 restart_options = ''
 
+choice = None
+
 while True:
+    plain = os.path.isfile('.env')
+    encrypted = os.path.isfile('.encryptedenv')
+    if not choice is None and os.environ.get('UNIFIER_ENCPASS') is None:
+        # choice is set but not the password, likely due to wrong password
+        encryption_password = getpass.getpass('Password: ')
+        os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+    elif not choice is None:
+        # choice is set and password is correct
+        if choice == 1:
+            # do not reencrypt .env
+            choice = 0
+    elif plain and encrypted:
+        print('\x1b[33;1m.env and .encryptedenv are present. What would you like to do?\x1b[0m')
+        print('\x1b[33m1. Use .encryptedenv')
+        print('2. Replace .encryptedenv with .env\x1b[0m')
+
+        try:
+            choice = int(input()) - 1
+            if choice < 0 or choice > 1:
+                raise ValueError()
+        except:
+            print(f'\x1b[31;1mAborting.\x1b[0m')
+            sys.exit(1)
+    elif plain:
+        print(
+            '\x1b[33;1mNo .encryptedenv file could not be found, but a .env file was found, .env will be encrypted and used.\x1b[0m')
+        choice = 1
+    elif encrypted:
+        choice = 0
+    else:
+        print('\x1b[31;1mNo .env or .encryptedenv file could be found.\x1b[0m')
+        print('More info: https://wiki.unifierhq.org/setup-selfhosted/getting-started/unifier#set-bot-token')
+        sys.exit(1)
+
+    if choice == 0:
+        encryption_password = os.environ.get('UNIFIER_ENCPASS')
+        if not encryption_password:
+            encryption_password = getpass.getpass('Password: ')
+
+        os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+        del encryption_password
+    elif choice == 1:
+        encryption_password = getpass.getpass('New password: ')
+        confirm_password = getpass.getpass('Confirm password: ')
+        os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+        del encryption_password
+        del confirm_password
+        should_encrypt = True
+
+    os.environ['UNIFIER_ENCOPTION'] = str(choice)
+
     exit_code = os.system(f'{binary} {boot_file}{restart_options}{options}')
 
     crash_reboot = False

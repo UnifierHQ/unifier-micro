@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 import sys
 import os
 import re
-from utils import log, ui
+from utils import log, ui, secrets
 import math
 import tomli
 import tomli_w
@@ -267,6 +267,13 @@ package = config['package']
 admin_ids = config['admin_ids']
 
 logger = log.buildlogger(package,'core',level)
+
+should_encrypt = int(os.environ['UNIFIER_ENCOPTION']) == 1
+tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], config['encrypted_env_salt'], config['debug'])
+
+if should_encrypt:
+    tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], config['encrypted_env_salt'])
+    os.remove('.env')
 
 room_template = {
     'rules': [], 'restricted': False, 'locked': False, 'private': False,
@@ -2088,4 +2095,7 @@ async def on_message_delete(message):
 
         await webhook.delete_message(msg_id)
 
-bot.run(os.environ.get('TOKEN'))
+try:
+    bot.run(tokenstore.retrieve('TOKEN'))
+except KeyboardInterrupt:
+    sys.exit(0)
